@@ -1,0 +1,141 @@
+{
+  "name": "multi-agent-helper",
+  "displayName": "多智能体助手",
+  "description": "一个能够协同完成复杂软件开发任务的VS Code多智能体插件。",
+  "version": "2.2.0",
+  "publisher": "锐儿or天机",
+  "engines": {
+    "vscode": "^1.89.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zhongruichen/build-agent"
+  },
+  "activationEvents": [
+    "onCommand:multi-agent-helper.startTask"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "multi-agent-helper.startTask",
+        "title": "开始多智能体任务"
+      }
+    ],
+    "configuration": {
+      "title": "多智能体助手",
+      "properties": {
+        "multiAgent.models": {
+          "type": "array",
+          "default": [],
+          "description": "在此处定义所有可用的语言模型。",
+          "items": {
+            "type": "object",
+            "title": "模型定义",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "为此模型定义一个唯一的名称 (例如, '我的-GPT4')。"
+              },
+              "provider": {
+                "type": "string",
+                "description": "模型的供应商。",
+                "enum": [
+                  "OpenAI",
+                  "Anthropic",
+                  "Google",
+                  "Groq",
+                  "Together",
+                  "Ollama",
+                  "Custom"
+                ]
+              },
+              "modelName": {
+                "type": "string",
+                "description": "要使用的模型的具体名称 (例如, 'gpt-4-turbo')。"
+              },
+              "apiKey": {
+                "type": "string",
+                "description": "模型供应商的API密钥。",
+                "format": "password"
+              },
+              "baseUrl": {
+                "type": "string",
+                "description": "API端点的基础URL (用于自定义或自托管模型)。"
+              }
+            },
+            "required": [
+              "name",
+              "provider",
+              "modelName",
+              "apiKey"
+            ]
+          }
+        },
+        "multiAgent.enableLongTermMemory": {
+          "type": "boolean",
+          "default": false,
+          "description": "启用或禁用长期记忆功能，允许智能体从过去的任务中学习。"
+        },
+        "multiAgent.enableAgentCollaboration": {
+          "type": "boolean",
+          "default": false,
+          "description": "启用或禁用智能体协作功能（实验性），例如直接通信和动态任务分配。"
+        },
+        "multiAgent.roles": {
+          "type": "array",
+          "description": "定义所有可用的智能体角色及其配置。如果系统提示为空，将使用默认提示。",
+          "default": [],
+          "items": {
+            "type": "object",
+            "title": "角色配置",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "角色的唯一名称。"
+              },
+              "model": {
+                "type": "string",
+                "description": "分配给此角色的已定义模型的名称。"
+              },
+              "systemPrompt": {
+                "type": "string",
+                "description": "此角色的系统提示。留空以使用默认提示。",
+                "format": "multiline"
+              },
+              "allowedTools": {
+                "type": "array",
+                "description": "允许此角色使用的工具列表。",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "name"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build-js": "npx esbuild src/extension.js --bundle --outfile=dist/extension.js --platform=node --external:vscode --format=cjs",
+    "copy-assets": "npx copyfiles -u 2 \"src/ui/assets/**/*\" dist",
+    "compile": "npm run build-js && npm run copy-assets",
+    "watch": "npm run compile -- --watch",
+    "bundle": "npm run build-js -- --minify && npm run copy-assets",
+    "lint": "eslint src",
+    "package-vsix": "npm run bundle && npx vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "@types/vscode": "^1.103.0",
+    "@vscode/vsce": "^3.6.0",
+    "copyfiles": "^2.4.1",
+    "esbuild": "^0.25.9",
+    "eslint": "^9.34.0",
+    "globals": "^16.3.0",
+    "typescript": "^5.9.2"
+  }
+}

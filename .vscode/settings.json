@@ -1,0 +1,11 @@
+{
+    "multiAgent.models": [
+        {
+            "name": "1",
+            "provider": "OpenAI",
+            "modelName": "gemini-2.5-pro",
+            "apiKey": "0",
+            "baseUrl": "http://127.0.0.1:8889/v1/chat/completions"
+        }
+    ]
+}

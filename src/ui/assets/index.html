@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多智能体协作开发平台</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="vs2015.min.css">
+    <script src="highlight.min.js"></script>
+</head>
+<body>
+    <h1>多智能体协作开发平台</h1>
+
+    <!-- 首次使用引导 -->
+    <div id="welcome-guide" class="welcome-guide" style="display: none;">
+        <div class="welcome-content">
+            <h2>👋 欢迎使用多智能体协作开发平台！</h2>
+            <p>让我们快速配置您的AI开发团队，只需3步即可开始：</p>
+            <div class="guide-steps">
+                <div class="guide-step">
+                    <span class="step-number">1</span>
+                    <h3>选择AI模型</h3>
+                    <p>从预设模板快速配置，或自定义您的模型</p>
+                </div>
+                <div class="guide-step">
+                    <span class="step-number">2</span>
+                    <h3>分配角色</h3>
+                    <p>为不同的智能体角色分配合适的模型</p>
+                </div>
+                <div class="guide-step">
+                    <span class="step-number">3</span>
+                    <h3>开始任务</h3>
+                    <p>输入您的开发目标，AI团队将自动协作完成</p>
+                </div>
+            </div>
+            <div class="guide-actions">
+                <button id="start-guide-btn" class="button-primary">开始配置向导</button>
+                <button id="skip-guide-btn" class="button">跳过，我已熟悉</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-button active" data-tab="status">任务状态</button>
+        <button class="tab-button" data-tab="workspace">工作区状态</button>
+        <button class="tab-button" data-tab="settings">设置</button>
+    </div>
+
+    <!-- Status Tab Content -->
+    <div id="status" class="tab-content active">
+        <div class="container">
+             <div class="section">
+               <h2>总体目标</h2>
+               <p id="overall-goal">在下方输入您的开发需求，AI团队将自动规划并执行...</p>
+           </div>
+           <div class="section">
+               <h2>当前计划</h2>
+               <div id="plan-progress" class="progress-bar" style="display: none;">
+                   <div id="plan-progress-bar" class="progress-bar-fill"></div>
+                   <span id="plan-progress-text" class="progress-text">0%</span>
+               </div>
+               <ul id="plan-list"></ul>
+                <div id="plan-review-container" style="display: none;">
+                    <h3>请审核并批准计划</h3>
+                    <div id="editable-plan-list"></div>
+                    <button id="add-task-btn" class="button">＋ 添加新任务</button>
+                    <div class="form-buttons">
+                        <button id="approve-plan-btn" class="button-primary">批准计划并执行</button>
+                        <button id="cancel-plan-btn" class="button">取消任务</button>
+                    </div>
+                </div>
+            </div>
+            <div class="section">
+                <h2>最终产物</h2>
+                <div class="artifact-toolbar">
+                    <button id="copy-artifact-btn" class="button">复制</button>
+                </div>
+                <pre id="final-artifact" class="code-box"><code></code></pre>
+            </div>
+            <div class="section chat-section">
+                <h2>事件流与对话</h2>
+                <div id="event-stream" class="log-box"></div>
+                <div id="chat-input-container" class="chat-input-container">
+                    <textarea id="chat-input" placeholder="请描述您需要AI团队完成的开发任务..."></textarea>
+                    <button id="send-chat-btn" class="button-primary" title="开始执行任务">发送</button>
+                    <button id="stop-task-btn" class="button" style="display: none;" title="停止当前任务">停止任务</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Workspace Tab Content -->
+    <div id="workspace" class="tab-content">
+        <button id="refresh-status-btn" class="button">刷新状态</button>
+        <div class="container">
+            <div class="section">
+                <h2>文件系统</h2>
+                <div id="fs-status" class="log-box"></div>
+            </div>
+             <div class="section">
+                <h2>调试器</h2>
+                <div id="debugger-status"></div>
+            </div>
+            <div class="section">
+                <h2>Git</h2>
+                <div id="git-status"></div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Settings Tab Content -->
+    <div id="settings" class="tab-content">
+        <div class="container">
+            <h2>模型配置</h2>
+            <div class="config-toolbar">
+                <button id="use-template-btn" class="button" title="使用预设的模型配置模板">使用配置模板</button>
+                <button id="import-config-btn" class="button" title="从文件导入配置">导入配置</button>
+                <button id="export-config-btn" class="button" title="导出当前配置到文件">导出配置</button>
+            </div>
+            <div id="models-list"></div>
+            <button id="add-model-btn" class="button">添加新模型</button>
+        </div>
+
+        <div id="roles-container" class="container">
+            <h2>角色配置</h2>
+            <div id="roles-list"></div>
+            <button id="add-role-btn" class="button">添加新角色</button>
+        </div>
+
+        <div class="container">
+            <h2>高级设置</h2>
+            <div id="advanced-settings">
+                <div class="setting-item">
+                    <label for="setting-smart-scan">启用智能扫描 (按需读取文件):</label>
+                    <input type="checkbox" id="setting-smart-scan">
+                </div>
+                <div class="setting-item">
+                    <label for="setting-parallel-exec">启用并行任务执行:</label>
+                    <input type="checkbox" id="setting-parallel-exec">
+                </div>
+                <div class="setting-item">
+                    <label for="setting-auto-mode">启用自动模式 (无需手动批准):</label>
+                    <input type="checkbox" id="setting-auto-mode">
+                </div>
+                <div class="setting-item">
+                    <label for="setting-persistence">启用任务持久化 (可恢复任务):</label>
+                    <input type="checkbox" id="setting-persistence">
+                </div>
+                <div class="setting-item">
+                    <label for="setting-long-term-memory">启用长期记忆 (实验性):</label>
+                    <input type="checkbox" id="setting-long-term-memory">
+                </div>
+                <div class="setting-item">
+                    <label for="setting-agent-collaboration">启用智能体协作 (实验性):</label>
+                    <input type="checkbox" id="setting-agent-collaboration">
+                </div>
+            </div>
+        </div>
+        <div class="container">
+            <h2>配置健康检查</h2>
+            <p>点击按钮检查您的模型和角色配置是否正确。</p>
+            <button id="health-check-btn" class="button">运行检查</button>
+            <div id="health-check-spinner" class="spinner" style="display: none;"></div>
+            <pre id="health-check-results" class="log-box" style="display: none;"></pre>
+        </div>
+
+        <button id="save-settings-btn" class="button-primary">保存所有设置</button>
+    </div>
+
+    <!-- Editor Modal (repurposed for both models and roles) -->
+    <div id="editor-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3 id="editor-title">编辑器</h3>
+            <div id="model-editor-fields">
+                <!-- Model fields will be injected by JS -->
+            </div>
+            <div id="role-editor-fields">
+                <!-- Role fields will be injected by JS -->
+            </div>
+            <div class="form-buttons">
+                <button id="save-editor-btn" class="button-primary">保存</button>
+                <button id="cancel-editor-btn" class="button">取消</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- 配置模板选择器 -->
+    <div id="template-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3>选择配置模板</h3>
+            <p>选择一个预设模板快速开始，您可以稍后修改这些配置。</p>
+            <div class="template-list">
+                <div class="template-item" data-template="openai-gpt4">
+                    <h4>🚀 OpenAI GPT-4</h4>
+                    <p>使用最新的GPT-4模型，适合复杂的代码生成和分析任务</p>
+                    <small>需要：OpenAI API密钥</small>
+                </div>
+                <div class="template-item" data-template="claude-3">
+                    <h4>🎯 Anthropic Claude 3</h4>
+                    <p>使用Claude 3模型，擅长代码理解和长文本处理</p>
+                    <small>需要：Anthropic API密钥</small>
+                </div>
+                <div class="template-item" data-template="local-ollama">
+                    <h4>💻 本地Ollama</h4>
+                    <p>使用本地运行的开源模型，无需API密钥，完全离线</p>
+                    <small>需要：本地安装Ollama</small>
+                </div>
+                <div class="template-item" data-template="mixed">
+                    <h4>⚡ 混合配置</h4>
+                    <p>为不同角色使用不同的模型，优化成本和性能</p>
+                    <small>推荐：有经验的用户</small>
+                </div>
+            </div>
+            <div class="form-buttons">
+                <button id="apply-template-btn" class="button-primary">应用模板</button>
+                <button id="cancel-template-btn" class="button">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html>

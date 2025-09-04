@@ -1,5 +1,6 @@
 const { OpenAICompatibleProvider } = require('../llm/provider.js');
 const logger = require('../logger');
+const { ThinkingChainEngine } = require('../thinking_chain/ThinkingChainEngine');
 
 /**
  * @typedef {import('events').EventEmitter} EventEmitter
@@ -31,6 +32,23 @@ class BaseAgent {
         if (this.id && this.messageBus) {
             this.messageBus.on(this.id, this.boundOnReceiveMessage);
         }
+    }
+
+    /**
+     * Initiates a deep thinking process using the ThinkingChainEngine.
+     * This is for complex problem-solving where a simple LLM request is insufficient.
+     * @param {string} problem The specific problem or question to think about.
+     * @param {object} context Additional context for the thinking process.
+     * @returns {Promise<string>} The structured result of the thinking process.
+     */
+    async think(problem, context = {}) {
+        // Lazily initialize the thinking engine to avoid unnecessary overhead.
+        if (!this.thinkingEngine) {
+            // Each agent gets its own thinking engine instance based on its model config.
+            this.thinkingEngine = new ThinkingChainEngine(this.modelConfig);
+        }
+        logger.log(`Agent "${this.id}" is starting a deep thinking process...`);
+        return this.thinkingEngine.execute(problem, context);
     }
 
     /**

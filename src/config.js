@@ -1,5 +1,29 @@
 const vscode = require('vscode');
 const prompts = require('./agents/prompts');
+const { ServiceManager } = require('./services/serviceManager');
+
+/**
+ * @typedef {object} ThinkingConfig
+ * @property {string} [preset]
+ * @property {number} [depth]
+ * @property {number} [iterate]
+ * @property {string} [model]
+ * @property {string} [focus]
+ * @property {boolean} [visualize]
+ * @property {boolean} [suggest]
+ * @property {boolean} [parallel]
+ * @property {boolean} [trace]
+ * @property {boolean} [confidence]
+ * @property {boolean} [critique]
+ */
+
+/**
+ * @typedef {object} ModelParameters
+ * @property {number} [temperature]
+ * @property {number} [max_tokens]
+ * @property {string} [system_prompt]
+ * @property {ThinkingConfig} [thinkingConfig]
+ */
 
 /**
  * @typedef {object} ModelConfig
@@ -8,6 +32,7 @@ const prompts = require('./agents/prompts');
  * @property {string} modelName
  * @property {string} [apiKey]
  * @property {string} [baseUrl]
+ * @property {ModelParameters} [parameters]
  */
 
 /**
@@ -16,18 +41,20 @@ const prompts = require('./agents/prompts');
  * @property {string} model
  * @property {string} systemPrompt
  * @property {string[]} allowedTools
+ * @property {boolean} [useThinkingChain]
+ * @property {string} [thinkingConfigPreset] // e.g., 'default', 'deep', 'top'
  */
-
+ 
 const DEFAULT_ROLES = [
-    { name: 'Orchestrator', model: '', systemPrompt: prompts.ORCHESTRATOR_PROMPT, allowedTools: [] },
-    { name: 'Worker', model: '', systemPrompt: prompts.WORKER_PROMPT, allowedTools: ["fileSystem.writeFile", "fileSystem.readFile", "fileSystem.listFiles", "fileSystem.summarizeFile", "terminal.executeCommand", "webSearch.search", "git.getCurrentBranch", "git.createBranch", "git.stageFiles", "git.commit", "debugger.start", "debugger.stop", "debugger.addBreakpoint", "debugger.removeBreakpoint", "debugger.next", "debugger.stepIn", "debugger.stepOut", "debugger.continue", "debugger.evaluate", "agent.sendMessage", "agent.createSubTask"] },
-    { name: 'Synthesizer', model: '', systemPrompt: prompts.SYNTHESIZER_PROMPT, allowedTools: [] },
-    { name: 'Evaluator', model: '', systemPrompt: prompts.EVALUATOR_PROMPT, allowedTools: [] },
-    { name: 'CritiqueAggregator', model: '', systemPrompt: prompts.CRITIQUE_AGGREGATION_PROMPT, allowedTools: [] },
-    { name: 'CodebaseScanner', model: '', systemPrompt: '', allowedTools: [] }, // Prompt is provided dynamically
-    { name: 'Reflector', model: '', systemPrompt: '', allowedTools: [] }, // Prompt is provided dynamically
-    { name: 'Reviewer', model: '', systemPrompt: '', allowedTools: [] }, // Prompt is provided dynamically
-    { name: 'KnowledgeExtractor', model: '', systemPrompt: '', allowedTools: [] } // Prompt is provided dynamically
+    { name: 'Orchestrator', model: '', systemPrompt: prompts.ORCHESTRATOR_PROMPT, allowedTools: [], useThinkingChain: true, thinkingConfigPreset: 'top' },
+    { name: 'Worker', model: '', systemPrompt: prompts.WORKER_PROMPT, allowedTools: ["fileSystem.writeFile", "fileSystem.readFile", "fileSystem.listFiles", "fileSystem.summarizeFile", "terminal.executeCommand", "webSearch.search", "git.getCurrentBranch", "git.createBranch", "git.stageFiles", "git.commit", "debugger.start", "debugger.stop", "debugger.addBreakpoint", "debugger.removeBreakpoint", "debugger.next", "debugger.stepIn", "debugger.stepOut", "debugger.continue", "debugger.evaluate", "agent.sendMessage", "agent.createSubTask"], useThinkingChain: false, thinkingConfigPreset: 'default' },
+    { name: 'Synthesizer', model: '', systemPrompt: prompts.SYNTHESIZER_PROMPT, allowedTools: [], useThinkingChain: false, thinkingConfigPreset: 'default' },
+    { name: 'Evaluator', model: '', systemPrompt: prompts.EVALUATOR_PROMPT, allowedTools: [], useThinkingChain: false, thinkingConfigPreset: 'default' },
+    { name: 'CritiqueAggregator', model: '', systemPrompt: prompts.CRITIQUE_AGGREGATION_PROMPT, allowedTools: [], useThinkingChain: false, thinkingConfigPreset: 'default' },
+    { name: 'CodebaseScanner', model: '', systemPrompt: '', allowedTools: [], useThinkingChain: false, thinkingConfigPreset: 'default' }, // Prompt is provided dynamically
+    { name: 'Reflector', model: '', systemPrompt: '', allowedTools: [], useThinkingChain: true, thinkingConfigPreset: 'deep' }, // Reflector benefits from deep thinking
+    { name: 'Reviewer', model: '', systemPrompt: '', allowedTools: [], useThinkingChain: false, thinkingConfigPreset: 'default' }, // Prompt is provided dynamically
+    { name: 'KnowledgeExtractor', model: '', systemPrompt: '', allowedTools: [], useThinkingChain: true, thinkingConfigPreset: 'deep' } // Extractor benefits from deep thinking
 ];
 
 

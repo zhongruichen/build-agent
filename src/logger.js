@@ -27,6 +27,16 @@ function logLine(message) {
     }
 }
 
+/**
+ * @param {any} message
+ */
+function error(message) {
+    if (outputChannel) {
+        const timestamp = new Date().toISOString();
+        outputChannel.appendLine(`[${timestamp}] [ERROR] ${String(message)}`);
+    }
+}
+
 function show() {
     if (outputChannel) {
         outputChannel.show(true); // true to preserve focus
@@ -44,6 +54,7 @@ module.exports = {
     createLogChannel,
     log,
     logLine,
+    error,
     show,
     dispose
 };

@@ -11,9 +11,12 @@
 class TaskContext {
     /**
      * @param {string} originalUserRequest The user's initial request.
+     * @param {any} codebase The codebase scanner instance.
      */
-    constructor(originalUserRequest) {
+    constructor(originalUserRequest, codebase = null) {
         this.originalUserRequest = originalUserRequest;
+        this.mainGoal = originalUserRequest; // Alias for clarity
+        this.codebase = codebase; // Instance of CodebaseScanner
         /** @type {SubTask[]} */
         this.subTasks = [];
         /** @type {IterationHistory[]} */
@@ -21,6 +24,7 @@ class TaskContext {
         this.currentIteration = 1;
         this.overallProgress = ""; // A summary of what has been done so far.
         this.projectContext = ""; // A summary of the existing codebase.
+        this.thinkingProcessResult = null; // To store results from ThinkingChainEngine
     }
 
     /**
@@ -31,6 +35,17 @@ class TaskContext {
         if (knowledge && typeof knowledge === 'string' && knowledge.trim().length > 0) {
             this.projectContext = `${knowledge}\n\n---\n\n${this.projectContext}`;
         }
+    }
+
+    /**
+     * Stores the result from the ThinkingChainEngine.
+     * @param {string} result The structured thinking process result.
+     */
+    addThinkingProcessResult(result) {
+        this.thinkingProcessResult = result;
+        // Optionally, prepend a summary to the project context
+        const summary = `Initial analysis of the user request concluded: ${result.substring(0, 200)}...`;
+        this.projectContext = `${summary}\n\n---\n\n${this.projectContext}`;
     }
 
     /**

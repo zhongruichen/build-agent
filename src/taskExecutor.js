@@ -8,6 +8,7 @@ const { ReviewerAgent } = require('./agents/reviewerAgent.js');
 const { KnowledgeExtractorAgent } = require('./agents/knowledgeExtractorAgent.js');
 const { MainPanel } = require('./ui/mainPanel');
 const knowledgeBase = require('./memory/knowledgeBase.js');
+const thinkingChainOrchestrator = require('./thinking_chain/ThinkingChainOrchestrator.js');
 /**
  * @typedef {import('events').EventEmitter} EventEmitter
  * @typedef {import('./agents/workerAgent.js').WorkerAgent} WorkerAgent
@@ -367,6 +368,19 @@ async function runIterationLoop(taskContext, agents, config, agentMessageBus, ta
         MainPanel.update({ command: 'log', text: `--- 第 ${taskContext.currentIteration} 轮迭代 ---` });
 
         if (taskContext.subTasks.every(t => t.status !== 'pending' && t.status !== 'in_progress')) {
+            // Initiate thinking process at the beginning of an iteration
+            const orchestratorProfile = getRoleProfile('Orchestrator');
+            if (orchestratorProfile?.useThinkingChain) {
+                const modelConfig = getModelForRole('Orchestrator');
+                // The thinkingConfig is now part of the model's parameters
+                const thinkingConfig = modelConfig?.parameters?.thinkingConfig || {};
+                
+                await thinkingChainOrchestrator.preprocess(taskContext, thinkingConfig);
+                if (taskContext.thinkingProcessResult) {
+                    MainPanel.update({ command: 'showThinkingProcess', text: taskContext.thinkingProcessResult });
+                }
+            }
+
             MainPanel.update({ command: 'log', text: '[Orchestrator] 正在制定计划...' });
             const initialPlan = await /** @type {OrchestratorAgent} */ (agents.orchestrator).executeTask(taskContext);
             const approvedPlan = await awaitPlanApproval(taskEventEmitter, initialPlan, signal);

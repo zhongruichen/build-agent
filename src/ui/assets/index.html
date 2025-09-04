@@ -77,6 +77,10 @@
                 </div>
                 <pre id="final-artifact" class="code-box"><code></code></pre>
             </div>
+            <div class="section" id="thinking-process-container" style="display: none;">
+                <h2>深度思考过程 <button id="toggle-thinking-btn" class="button">显示/隐藏</button></h2>
+                <div id="thinking-process-content" class="log-box" style="display: none;"></div>
+            </div>
             <div class="section chat-section">
                 <h2>事件流与对话</h2>
                 <div id="event-stream" class="log-box"></div>
@@ -112,14 +116,11 @@
     <!-- Settings Tab Content -->
     <div id="settings" class="tab-content">
         <div class="container">
-            <h2>模型配置</h2>
-            <div class="config-toolbar">
-                <button id="use-template-btn" class="button" title="使用预设的模型配置模板">使用配置模板</button>
-                <button id="import-config-btn" class="button" title="从文件导入配置">导入配置</button>
-                <button id="export-config-btn" class="button" title="导出当前配置到文件">导出配置</button>
+            <h2>API 服务商配置</h2>
+            <div id="service-provider-list-container">
+                <!-- Service Providers will be dynamically rendered here -->
             </div>
-            <div id="models-list"></div>
-            <button id="add-model-btn" class="button">添加新模型</button>
+            <button id="add-provider-btn" class="button">添加服务商</button>
         </div>
 
         <div id="roles-container" class="container">
@@ -184,7 +185,74 @@
             </div>
         </div>
     </div>
-
+    
+    <!-- Model Parameters Configuration Modal -->
+    <div id="model-params-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3 id="model-params-title">配置模型参数</h3>
+            <div class="form-grid">
+                <div class="form-item">
+                    <label for="param-temperature">Temperature</label>
+                    <input type="number" id="param-temperature" min="0" max="2" step="0.1" placeholder="例如: 0.7">
+                </div>
+                <div class="form-item">
+                    <label for="param-max-tokens">Max Tokens</label>
+                    <input type="number" id="param-max-tokens" min="1" step="1" placeholder="例如: 4096">
+                </div>
+                <div class="form-item form-item-full-width">
+                    <label for="param-system-prompt">System Prompt</label>
+                    <textarea id="param-system-prompt" rows="6" placeholder="输入自定义的系统提示..."></textarea>
+                </div>
+            </div>
+            <hr>
+            <h4>深度思考配置 (此模型的默认值)</h4>
+            <div class="thinking-config-modal">
+                 <div class="setting-item">
+                    <label for="thinking-preset">预设模式:</label>
+                    <select id="thinking-preset">
+                        <option value="default">默认</option>
+                        <option value="deep">深度模式</option>
+                        <option value="top">顶级模式</option>
+                        <option value="custom">自定义</option>
+                    </select>
+                </div>
+                <div id="thinking-custom-settings">
+                    <div class="setting-item">
+                        <label for="thinking-depth">思考深度 (!depth):</label>
+                        <input type="number" id="thinking-depth" min="1" max="30" placeholder="10">
+                    </div>
+                    <div class="setting-item">
+                        <label for="thinking-iterate">迭代次数 (!iterate):</label>
+                        <input type="number" id="thinking-iterate" min="1" max="10" placeholder="3">
+                    </div>
+                     <div class="setting-item">
+                        <label for="thinking-model">思考模型 (!model):</label>
+                        <input type="text" id="thinking-model" placeholder="all">
+                    </div>
+                    <div class="setting-item">
+                        <label for="thinking-focus">聚焦步骤 (!focus):</label>
+                        <input type="text" id="thinking-focus" placeholder="5,7,8,9">
+                    </div>
+                    <fieldset>
+                        <legend>功能启用</legend>
+                        <div class="checkbox-group-grid">
+                            <label><input type="checkbox" id="thinking-visualize"> 可视化过程 (!think)</label>
+                            <label><input type="checkbox" id="thinking-suggest"> 输出创新发现 (!suggest)</label>
+                            <label><input type="checkbox" id="thinking-parallel"> 并行思考 (!parallel)</label>
+                            <label><input type="checkbox" id="thinking-trace"> 思维路径追踪 (!trace)</label>
+                            <label><input type="checkbox" id="thinking-confidence"> 显示置信度 (!confidence)</label>
+                            <label><input type="checkbox" id="thinking-critique"> 红队批判过程 (!critique)</label>
+                        </div>
+                    </fieldset>
+                </div>
+            </div>
+            <div class="form-buttons">
+                <button id="save-model-params-btn" class="button-primary">保存</button>
+                <button id="reset-model-params-btn" class="button">重置为默认</button>
+                <button id="cancel-model-params-btn" class="button">取消</button>
+            </div>
+        </div>
+    </div>
 
     <!-- 配置模板选择器 -->
     <div id="template-modal" class="modal" style="display: none;">

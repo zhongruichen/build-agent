@@ -1,8 +1,8 @@
 {
   "name": "multi-agent-helper",
   "displayName": "多智能体助手",
-  "description": "一个能够协同完成复杂软件开发任务的VS Code多智能体插件。",
-  "version": "2.2.0",
+  "description": "一个能够协同完成复杂软件开发任务的VS Code多智能体插件，支持可视化工作流构建。",
+  "version": "2.3.0",
   "publisher": "zhongruichen",
   "engines": {
     "vscode": "^1.103.0"

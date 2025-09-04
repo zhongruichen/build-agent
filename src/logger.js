@@ -55,6 +55,7 @@ module.exports = {
     log,
     logLine,
     error,
+    logError: error, // Alias for compatibility
     show,
     dispose
 };

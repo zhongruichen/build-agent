@@ -14,6 +14,8 @@ const { listFiles } = require('./tools/fileSystem');
 const gitTools = require('./tools/git');
 const { runTaskExecution } = require('./taskExecutor');
 const { OpenAICompatibleProvider } = require('./llm/provider');
+const { getMCPManager } = require('./mcp/MCPManager');
+const { WorkflowService } = require('./workflow/WorkflowService');
 
 const agentMessageBus = new EventEmitter();
 /** @type {AbortController | null} */
@@ -151,12 +153,24 @@ async function migrateSettings(config) {
 /**
  * @param {vscode.ExtensionContext} context
  */
-function activate(context) {
+async function activate(context) {
     const debugListeners = setupDebugListeners();
     context.subscriptions.push(...debugListeners);
 
     knowledgeBase.initialize(context);
     migrateSettings(vscode.workspace.getConfiguration('multiAgent'));
+    
+    // Initialize MCP Manager
+    try {
+        const mcpManager = getMCPManager();
+        await mcpManager.initialize(context);
+        logger.log('MCP Manager initialized successfully');
+    } catch (error) {
+        logger.logError(`Failed to initialize MCP Manager: ${error.message}`);
+    }
+    
+    // Initialize Workflow Service
+    const workflowService = new WorkflowService(context);
 
     const stateFilePath = path.join(context.globalStoragePath, 'activeTaskState.json');
 
@@ -294,13 +308,213 @@ function activate(context) {
         }
     }
 
-    let disposable = vscode.commands.registerCommand('multi-agent-helper.startTask', () => {
-        MainPanel.createOrShow(context, taskEventEmitter);
-    });
+    // Register commands
+    const disposables = [
+        vscode.commands.registerCommand('multi-agent-helper.startTask', () => {
+            MainPanel.createOrShow(context, taskEventEmitter);
+        }),
+        
+        // Workflow commands
+        vscode.commands.registerCommand('multi-agent-helper.openWorkflowEditor', () => {
+            workflowService.createEditorPanel();
+        }),
+        
+        vscode.commands.registerCommand('multi-agent-helper.createWorkflow', async () => {
+            const name = await vscode.window.showInputBox({
+                prompt: '请输入工作流名称',
+                placeHolder: '新工作流'
+            });
+            
+            if (name) {
+                const panel = workflowService.createEditorPanel();
+                panel.webview.postMessage({
+                    command: 'createWorkflow',
+                    name
+                });
+            }
+        }),
+        
+        vscode.commands.registerCommand('multi-agent-helper.listWorkflows', async () => {
+            const workflows = await workflowService.listWorkflows();
+            
+            if (workflows.length === 0) {
+                vscode.window.showInformationMessage('没有找到保存的工作流');
+                return;
+            }
+            
+            const items = workflows.map(wf => ({
+                label: wf.name,
+                description: wf.description,
+                detail: `创建于: ${new Date(wf.createdAt).toLocaleString()}`,
+                workflow: wf
+            }));
+            
+            const selected = await vscode.window.showQuickPick(items, {
+                placeHolder: '选择要打开的工作流'
+            });
+            
+            if (selected) {
+                const panel = workflowService.createEditorPanel();
+                const workflow = await workflowService.loadWorkflow(selected.workflow.id);
+                panel.webview.postMessage({
+                    command: 'workflowLoaded',
+                    workflow
+                });
+            }
+        }),
+        
+        vscode.commands.registerCommand('multi-agent-helper.runWorkflow', async () => {
+            const workflows = await workflowService.listWorkflows();
+            
+            if (workflows.length === 0) {
+                vscode.window.showInformationMessage('没有找到保存的工作流');
+                return;
+            }
+            
+            const items = workflows.map(wf => ({
+                label: wf.name,
+                description: wf.description,
+                workflow: wf
+            }));
+            
+            const selected = await vscode.window.showQuickPick(items, {
+                placeHolder: '选择要运行的工作流'
+            });
+            
+            if (selected) {
+                try {
+                    await vscode.window.withProgress({
+                        location: vscode.ProgressLocation.Notification,
+                        title: `运行工作流: ${selected.label}`,
+                        cancellable: false
+                    }, async (progress) => {
+                        progress.report({ increment: 0, message: '正在执行...' });
+                        
+                        const result = await workflowService.executeWorkflow(
+                            selected.workflow.id,
+                            {}
+                        );
+                        
+                        progress.report({ increment: 100, message: '完成' });
+                        
+                        vscode.window.showInformationMessage(
+                            `工作流执行完成: ${result.status}`
+                        );
+                        
+                        // 显示结果
+                        const document = await vscode.workspace.openTextDocument({
+                            content: JSON.stringify(result, null, 2),
+                            language: 'json'
+                        });
+                        await vscode.window.showTextDocument(document);
+                    });
+                } catch (error) {
+                    vscode.window.showErrorMessage(
+                        `工作流执行失败: ${error.message}`
+                    );
+                }
+            }
+        }),
+        
+        vscode.commands.registerCommand('multi-agent-helper.importWorkflow', async () => {
+            const options = {
+                canSelectMany: false,
+                openLabel: '导入',
+                filters: {
+                    'YAML文件': ['yaml', 'yml'],
+                    '所有文件': ['*']
+                }
+            };
+            
+            const fileUri = await vscode.window.showOpenDialog(options);
+            
+            if (fileUri && fileUri[0]) {
+                try {
+                    const content = await fs.readFile(fileUri[0].fsPath, 'utf8');
+                    const workflow = await workflowService.importFromYAML(content);
+                    
+                    vscode.window.showInformationMessage(
+                        `工作流 "${workflow.name}" 已成功导入`
+                    );
+                    
+                    // 打开编辑器
+                    const panel = workflowService.createEditorPanel();
+                    panel.webview.postMessage({
+                        command: 'workflowLoaded',
+                        workflow
+                    });
+                } catch (error) {
+                    vscode.window.showErrorMessage(
+                        `导入工作流失败: ${error.message}`
+                    );
+                }
+            }
+        }),
+        
+        vscode.commands.registerCommand('multi-agent-helper.exportWorkflow', async () => {
+            const workflows = await workflowService.listWorkflows();
+            
+            if (workflows.length === 0) {
+                vscode.window.showInformationMessage('没有找到保存的工作流');
+                return;
+            }
+            
+            const items = workflows.map(wf => ({
+                label: wf.name,
+                description: wf.description,
+                workflow: wf
+            }));
+            
+            const selected = await vscode.window.showQuickPick(items, {
+                placeHolder: '选择要导出的工作流'
+            });
+            
+            if (selected) {
+                const options = {
+                    defaultUri: vscode.Uri.file(
+                        path.join(
+                            vscode.workspace.workspaceFolders[0].uri.fsPath,
+                            `${selected.workflow.name}.yaml`
+                        )
+                    ),
+                    filters: {
+                        'YAML文件': ['yaml', 'yml']
+                    }
+                };
+                
+                const fileUri = await vscode.window.showSaveDialog(options);
+                
+                if (fileUri) {
+                    try {
+                        const yamlContent = await workflowService.exportToYAML(
+                            selected.workflow.id
+                        );
+                        await fs.writeFile(fileUri.fsPath, yamlContent);
+                        
+                        vscode.window.showInformationMessage(
+                            `工作流已导出到: ${fileUri.fsPath}`
+                        );
+                    } catch (error) {
+                        vscode.window.showErrorMessage(
+                            `导出工作流失败: ${error.message}`
+                        );
+                    }
+                }
+            }
+        })
+    ];
 
-    context.subscriptions.push(disposable);
+    context.subscriptions.push(...disposables);
 }
 
-function deactivate() {}
+async function deactivate() {
+    // Shutdown MCP Manager
+    try {
+        const mcpManager = getMCPManager();
+        await mcpManager.shutdown();
+    } catch (error) {
+        console.error('Error during MCP shutdown:', error);
+    }
+}
 
 module.exports = { activate, deactivate };

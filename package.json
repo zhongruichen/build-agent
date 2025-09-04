@@ -20,6 +20,36 @@
       {
         "command": "multi-agent-helper.startTask",
         "title": "开始多智能体任务"
+      },
+      {
+        "command": "multi-agent-helper.openWorkflowEditor",
+        "title": "打开工作流编辑器",
+        "category": "工作流"
+      },
+      {
+        "command": "multi-agent-helper.createWorkflow",
+        "title": "创建新工作流",
+        "category": "工作流"
+      },
+      {
+        "command": "multi-agent-helper.listWorkflows",
+        "title": "打开工作流",
+        "category": "工作流"
+      },
+      {
+        "command": "multi-agent-helper.runWorkflow",
+        "title": "运行工作流",
+        "category": "工作流"
+      },
+      {
+        "command": "multi-agent-helper.importWorkflow",
+        "title": "导入工作流",
+        "category": "工作流"
+      },
+      {
+        "command": "multi-agent-helper.exportWorkflow",
+        "title": "导出工作流",
+        "category": "工作流"
       }
     ],
     "configuration": {
@@ -82,6 +112,75 @@
           "default": false,
           "description": "启用或禁用智能体协作功能（实验性），例如直接通信和动态任务分配。"
         },
+        "multiAgent.mcp": {
+          "type": "object",
+          "description": "MCP (Model Context Protocol) 配置",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "启用或禁用MCP支持"
+            },
+            "servers": {
+              "type": "array",
+              "description": "要启动的MCP服务器配置",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "服务器名称"
+                  },
+                  "command": {
+                    "type": "string",
+                    "description": "启动服务器的命令"
+                  },
+                  "args": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "命令参数"
+                  },
+                  "env": {
+                    "type": "object",
+                    "description": "环境变量"
+                  }
+                },
+                "required": ["name", "command"]
+              }
+            },
+            "clients": {
+              "type": "array",
+              "description": "要连接的MCP服务器配置",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "客户端名称"
+                  },
+                  "command": {
+                    "type": "string",
+                    "description": "启动服务器的命令"
+                  },
+                  "args": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "命令参数"
+                  },
+                  "env": {
+                    "type": "object",
+                    "description": "环境变量"
+                  }
+                },
+                "required": ["name"]
+              }
+            }
+          }
+        },
         "multiAgent.roles": {
           "type": "array",
           "description": "定义所有可用的智能体角色及其配置。如果系统提示为空，将使用默认提示。",
@@ -127,6 +226,10 @@
     "bundle": "npm run build-js -- --minify && npm run copy-assets",
     "lint": "eslint src",
     "package-vsix": "npm run bundle && npx vsce package --no-dependencies"
+  },
+  "dependencies": {
+    "uuid": "^10.0.0",
+    "js-yaml": "^4.1.0"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",

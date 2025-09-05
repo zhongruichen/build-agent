@@ -6,6 +6,11 @@ const { v4: uuidv4 } = require('uuid');
  * Provides a standardized interface for exposing tools and resources to LLM applications
  */
 class MCPServer extends EventEmitter {
+    /**
+     * @param {object} [options]
+     * @param {string} [options.name]
+     * @param {string} [options.version]
+     */
     constructor(options = {}) {
         super();
         
@@ -108,19 +113,19 @@ class MCPServer extends EventEmitter {
      * @param {Object} prompt - Prompt definition
      * @param {string} prompt.name - Prompt name
      * @param {string} prompt.description - Prompt description
-     * @param {Array} prompt.arguments - Prompt arguments
+     * @param {any[]} prompt.arguments - Prompt arguments
      * @param {Function} prompt.handler - Prompt generation handler
-     */
-    registerPrompt(prompt) {
-        if (!prompt.name || !prompt.handler) {
-            throw new Error('Prompt must have a name and handler');
-        }
+      */
+     registerPrompt(prompt) {
+         if (!prompt.name || !prompt.handler) {
+             throw new Error('Prompt must have a name and handler');
+         }
         
-        const promptDefinition = {
-            name: prompt.name,
-            description: prompt.description || '',
-            arguments: prompt.arguments || []
-        };
+         const promptDefinition = {
+             name: prompt.name,
+             description: prompt.description || '',
+             arguments: prompt.arguments || []
+         };
         
         this.prompts.set(prompt.name, {
             definition: promptDefinition,
@@ -132,82 +137,84 @@ class MCPServer extends EventEmitter {
     
     /**
      * Handle incoming MCP request
-     * @param {Object} request - MCP request object
-     * @returns {Promise<Object>} MCP response object
-     */
-    async handleRequest(request) {
-        const { method, params, id } = request;
+     * @param {any} request - MCP request object
+     * @returns {Promise<object>} MCP response object
+      */
+     async handleRequest(request) {
+         const { method, params, id } = request;
         
-        try {
-            let result;
+         try {
+             let result;
             
-            switch (method) {
-                case 'initialize':
-                    await this.initialize();
-                    result = this.serverInfo;
-                    break;
+             switch (method) {
+                 case 'initialize':
+                     await this.initialize();
+                     result = this.serverInfo;
+                     break;
                     
-                case 'tools/list':
-                    result = await this.listTools();
-                    break;
+                 case 'tools/list':
+                     result = await this.listTools();
+                     break;
                     
-                case 'tools/call':
-                    result = await this.callTool(params.name, params.arguments);
-                    break;
+                 case 'tools/call':
+                     result = await this.callTool(params.name, params.arguments);
+                     break;
                     
-                case 'resources/list':
-                    result = await this.listResources();
-                    break;
+                 case 'resources/list':
+                     result = await this.listResources();
+                     break;
                     
-                case 'resources/read':
-                    result = await this.readResource(params.uri);
-                    break;
+                 case 'resources/read':
+                     result = await this.readResource(params.uri);
+                     break;
                     
-                case 'resources/subscribe':
-                    result = await this.subscribeToResource(params.uri);
-                    break;
+                 case 'resources/subscribe':
+                     result = await this.subscribeToResource(params.uri);
+                     break;
                     
-                case 'resources/unsubscribe':
-                    result = await this.unsubscribeFromResource(params.uri);
-                    break;
+                 case 'resources/unsubscribe':
+                     result = await this.unsubscribeFromResource(params.uri);
+                     break;
                     
-                case 'prompts/list':
-                    result = await this.listPrompts();
-                    break;
+                 case 'prompts/list':
+                     result = await this.listPrompts();
+                     break;
                     
-                case 'prompts/get':
-                    result = await this.getPrompt(params.name, params.arguments);
-                    break;
+                 case 'prompts/get':
+                     result = await this.getPrompt(params.name, params.arguments);
+                     break;
                     
-                case 'completion/complete':
-                    result = await this.handleCompletion(params);
-                    break;
+                 case 'completion/complete':
+                     result = await this.handleCompletion(params);
+                     break;
                     
-                case 'logging/setLevel':
-                    result = await this.setLogLevel(params.level);
-                    break;
+                 case 'logging/setLevel':
+                     result = await this.setLogLevel(params.level);
+                     break;
                     
-                default:
-                    throw new Error(`Unknown method: ${method}`);
-            }
+                 default:
+                     throw new Error(`Unknown method: ${method}`);
+             }
             
-            return {
-                jsonrpc: '2.0',
-                id,
-                result
-            };
-        } catch (error) {
-            return {
-                jsonrpc: '2.0',
-                id,
-                error: {
-                    code: -32603,
-                    message: error.message,
-                    data: error.stack
-                }
-            };
-        }
-    }
+             return {
+                 jsonrpc: '2.0',
+                 id,
+                 result
+             };
+         } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : String(error);
+             return {
+                 jsonrpc: '2.0',
+                 id,
+                 error: {
+                     code: -32603,
+                     message: errorMessage,
+                     data: errorStack
+                 }
+             };
+         }
+     }
     
     /**
      * List available tools
@@ -243,11 +250,12 @@ class MCPServer extends EventEmitter {
                 isError: false
             };
         } catch (error) {
+           const errorMessage = error instanceof Error ? error.message : String(error);
             return {
                 content: [
                     {
                         type: 'text',
-                        text: `Error: ${error.message}`
+                        text: `Error: ${errorMessage}`
                     }
                 ],
                 isError: true
@@ -385,17 +393,18 @@ class MCPServer extends EventEmitter {
     /**
      * Send notification to client
      * @param {string} method - Notification method
-     * @param {Object} params - Notification parameters
-     */
-    sendNotification(method, params) {
-        if (this.transport) {
-            this.transport.send({
-                jsonrpc: '2.0',
-                method,
-                params
-            });
-        }
-    }
+     * @param {object} params - Notification parameters
+      */
+     sendNotification(method, params) {
+         if (this.transport) {
+            // @ts-ignore
+             this.transport.send({
+                 jsonrpc: '2.0',
+                 method,
+                 params
+             });
+         }
+     }
     
     /**
      * Notify resource updated

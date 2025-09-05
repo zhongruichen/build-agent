@@ -9,13 +9,20 @@ const { ToolOrchestrationEngine } = require('../mcp/orchestration/ToolOrchestrat
  * 管理工作流的存储、加载和执行
  */
 class WorkflowService {
+    /**
+     * @param {vscode.ExtensionContext} context
+     */
     constructor(context) {
+        /** @type {vscode.ExtensionContext} */
         this.context = context;
+        /** @type {WorkflowVisualManager} */
         this.visualManager = new WorkflowVisualManager();
+        /** @type {ToolOrchestrationEngine} */
         this.orchestrationEngine = new ToolOrchestrationEngine();
         
-        // 工作流存储路径
+        /** @type {string} */
         this.workflowPath = path.join(context.globalStorageUri.fsPath, 'workflows');
+        /** @type {string} */
         this.templatesPath = path.join(context.extensionPath, 'workflows', 'templates');
         
         // 初始化
@@ -30,7 +37,11 @@ class WorkflowService {
         try {
             await fs.mkdir(this.workflowPath, { recursive: true });
         } catch (error) {
-            console.error('Failed to create workflow directory:', error);
+            if (error instanceof Error) {
+                console.error('Failed to create workflow directory:', error.message);
+            } else {
+                console.error('Failed to create workflow directory:', error);
+            }
         }
         
         // 注册默认模板
@@ -45,7 +56,7 @@ class WorkflowService {
      */
     registerDefaultTemplates() {
         // 文件处理工作流模板
-        this.visualManager.registerTemplate('file-processor', {
+        this.orchestrationEngine.registerTemplate('file-processor', {
             name: '文件处理工作流',
             description: '批量处理文件的工作流模板',
             version: '1.0.0',
@@ -86,7 +97,7 @@ class WorkflowService {
         });
         
         // Git工作流模板
-        this.visualManager.registerTemplate('git-workflow', {
+        this.orchestrationEngine.registerTemplate('git-workflow', {
             name: 'Git操作工作流',
             description: '自动化Git操作的工作流模板',
             version: '1.0.0',
@@ -118,7 +129,7 @@ class WorkflowService {
         });
         
         // 代码分析工作流模板
-        this.visualManager.registerTemplate('code-analysis', {
+        this.orchestrationEngine.registerTemplate('code-analysis', {
             name: '代码分析工作流',
             description: '分析代码库的工作流模板',
             version: '1.0.0',
@@ -159,7 +170,7 @@ class WorkflowService {
         });
         
         // 测试工作流模板
-        this.visualManager.registerTemplate('test-runner', {
+        this.orchestrationEngine.registerTemplate('test-runner', {
             name: '测试运行工作流',
             description: '运行测试并生成报告的工作流模板',
             version: '1.0.0',
@@ -201,7 +212,7 @@ class WorkflowService {
         });
         
         // 部署工作流模板
-        this.visualManager.registerTemplate('deployment', {
+        this.orchestrationEngine.registerTemplate('deployment', {
             name: '部署工作流',
             description: '自动化部署流程的工作流模板',
             version: '1.0.0',
@@ -268,7 +279,7 @@ class WorkflowService {
     
     /**
      * 保存工作流
-     * @param {Object} workflow - 工作流对象
+     * @param {import('./workflowTypes').Workflow} workflow - 工作流对象
      * @returns {Promise<string>} 保存的文件路径
      */
     async saveWorkflow(workflow) {
@@ -279,14 +290,17 @@ class WorkflowService {
             await fs.writeFile(filePath, JSON.stringify(workflow, null, 2));
             return filePath;
         } catch (error) {
-            throw new Error(`Failed to save workflow: ${error.message}`);
+            if (error instanceof Error) {
+                throw new Error(`Failed to save workflow: ${error.message}`);
+            }
+            throw new Error('Failed to save workflow due to an unknown error.');
         }
     }
     
     /**
      * 加载工作流
      * @param {string} workflowId - 工作流ID
-     * @returns {Promise<Object>} 工作流对象
+     * @returns {Promise<import('./workflowTypes').Workflow>} 工作流对象
      */
     async loadWorkflow(workflowId) {
         const files = await fs.readdir(this.workflowPath);
@@ -304,7 +318,7 @@ class WorkflowService {
     
     /**
      * 列出所有工作流
-     * @returns {Promise<Array>} 工作流列表
+     * @returns {Promise<Array<{id: string, name: string, description: string, createdAt: number, updatedAt: number}>>} 工作流列表
      */
     async listWorkflows() {
         try {
@@ -329,7 +343,11 @@ class WorkflowService {
             
             return workflows;
         } catch (error) {
-            console.error('Failed to list workflows:', error);
+            if (error instanceof Error) {
+                console.error('Failed to list workflows:', error.message);
+            } else {
+                console.error('Failed to list workflows:', error);
+            }
             return [];
         }
     }
@@ -361,7 +379,7 @@ class WorkflowService {
     /**
      * 从YAML导入工作流
      * @param {string} yamlContent - YAML内容
-     * @returns {Promise<Object>} 导入的工作流
+     * @returns {Promise<import('./workflowTypes').Workflow>} 导入的工作流
      */
     async importFromYAML(yamlContent) {
         const workflow = this.visualManager.fromYAML(yamlContent);
@@ -372,8 +390,8 @@ class WorkflowService {
     /**
      * 执行工作流
      * @param {string} workflowId - 工作流ID
-     * @param {Object} context - 执行上下文
-     * @returns {Promise<Object>} 执行结果
+     * @param {Object<string, any>} [context={}] - 执行上下文
+     * @returns {Promise<any>} 执行结果
      */
     async executeWorkflow(workflowId, context = {}) {
         const workflow = await this.loadWorkflow(workflowId);
@@ -389,7 +407,7 @@ class WorkflowService {
     /**
      * 验证工作流
      * @param {string} workflowId - 工作流ID
-     * @returns {Promise<Object>} 验证结果
+     * @returns {Promise<{valid: boolean, errors: string[]}>} 验证结果
      */
     async validateWorkflow(workflowId) {
         const workflow = await this.loadWorkflow(workflowId);
@@ -399,7 +417,7 @@ class WorkflowService {
     /**
      * 获取工作流执行状态
      * @param {string} executionId - 执行ID
-     * @returns {Object} 执行状态
+     * @returns {any} 执行状态
      */
     getExecutionStatus(executionId) {
         return this.orchestrationEngine.getExecutionStatus(executionId);
@@ -407,7 +425,7 @@ class WorkflowService {
     
     /**
      * 获取工作流执行指标
-     * @returns {Object} 执行指标
+     * @returns {any} 执行指标
      */
     getMetrics() {
         return this.orchestrationEngine.getMetrics();
@@ -448,7 +466,7 @@ class WorkflowService {
                         } catch (error) {
                             panel.webview.postMessage({
                                 command: 'error',
-                                message: error.message
+                                message: error instanceof Error ? error.message : String(error)
                             });
                         }
                         break;
@@ -463,7 +481,7 @@ class WorkflowService {
                         } catch (error) {
                             panel.webview.postMessage({
                                 command: 'error',
-                                message: error.message
+                                message: error instanceof Error ? error.message : String(error)
                             });
                         }
                         break;
@@ -478,7 +496,7 @@ class WorkflowService {
                         } catch (error) {
                             panel.webview.postMessage({
                                 command: 'error',
-                                message: error.message
+                                message: error instanceof Error ? error.message : String(error)
                             });
                         }
                         break;
@@ -496,7 +514,7 @@ class WorkflowService {
                         } catch (error) {
                             panel.webview.postMessage({
                                 command: 'error',
-                                message: error.message
+                                message: error instanceof Error ? error.message : String(error)
                             });
                         }
                         break;
@@ -511,13 +529,13 @@ class WorkflowService {
                         } catch (error) {
                             panel.webview.postMessage({
                                 command: 'error',
-                                message: error.message
+                                message: error instanceof Error ? error.message : String(error)
                             });
                         }
                         break;
                         
                     case 'getTemplates':
-                        const templates = Array.from(this.visualManager.templates.entries()).map(([name, template]) => ({
+                        const templates = Array.from(this.orchestrationEngine.templates.entries()).map(([name, template]) => ({
                             name,
                             ...template
                         }));
@@ -538,6 +556,9 @@ class WorkflowService {
     /**
      * 获取编辑器HTML
      * @private
+     */
+    /**
+     * @param {vscode.Webview} webview
      */
     getEditorHtml(webview) {
         const scriptUri = webview.asWebviewUri(

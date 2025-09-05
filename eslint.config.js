@@ -44,5 +44,23 @@ module.exports = [
       "no-unused-vars": ["warn", { "caughtErrors": "none" }],
       "no-undef": "error"
     }
+  },
+  {
+    // Configuration for UI component files (browser-like environment)
+    files: ["src/ui/components/**/*.js"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: {
+        ...globals.browser,
+        "acquireVsCodeApi": "readonly",
+        "module": "readonly"
+      }
+    },
+    rules: {
+      "semi": ["error", "always"],
+      "no-unused-vars": ["warn", { "caughtErrors": "none" }],
+      "no-undef": "error"
+    }
   }
 ];

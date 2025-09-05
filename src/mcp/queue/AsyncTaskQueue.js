@@ -28,6 +28,15 @@ const TASK_STATE = {
  * Advanced Async Task Queue with priority, scheduling, and dependency management
  */
 class AsyncTaskQueue extends EventEmitter {
+    /**
+     * @param {object} [options]
+     * @param {number} [options.concurrency]
+     * @param {number} [options.retryAttempts]
+     * @param {number} [options.retryDelay]
+     * @param {number} [options.taskTimeout]
+     * @param {boolean} [options.enablePersistence]
+     * @param {boolean} [options.enableMetrics]
+     */
     constructor(options = {}) {
         super();
         
@@ -53,6 +62,7 @@ class AsyncTaskQueue extends EventEmitter {
         this.tasks = new Map();
         this.runningTasks = new Map();
         this.completedTasks = new Map();
+        /** @type {any[]} */
         this.deadLetterQueue = [];
         
         // Dependencies graph
@@ -99,30 +109,39 @@ class AsyncTaskQueue extends EventEmitter {
     
     /**
      * Add a task to the queue
-     * @param {Object} task - Task configuration
-     * @returns {string} Task ID
-     */
-    async addTask(task) {
-        const taskId = task.id || uuidv4();
+     * @param {object} task - Task configuration
+     * @param {string} [task.id]
+     * @param {string} [task.name]
+     * @param {Function} task.handler
+     * @param {object} [task.params]
+     * @param {number} [task.priority]
+     * @param {number} [task.retryAttempts]
+     * @param {number} [task.timeout]
+     * @param {string[]} [task.dependencies]
+     * @param {number} [task.scheduledTime]
+     * @returns {Promise<string>} Task ID
+      */
+     async addTask(task) {
+         const taskId = task.id || uuidv4();
         
-        const taskInfo = {
-            id: taskId,
-            name: task.name || 'unnamed',
-            handler: task.handler,
-            params: task.params || {},
-            priority: task.priority || PRIORITY.NORMAL,
-            retryAttempts: task.retryAttempts ?? this.config.retryAttempts,
-            timeout: task.timeout || this.config.taskTimeout,
-            dependencies: task.dependencies || [],
-            scheduledTime: task.scheduledTime || null,
-            createdAt: Date.now(),
-            startedAt: null,
-            completedAt: null,
-            state: TASK_STATE.PENDING,
-            result: null,
-            error: null,
-            attempts: 0
-        };
+         const taskInfo = {
+             id: taskId,
+             name: task.name || 'unnamed',
+             handler: task.handler,
+             params: task.params || {},
+             priority: task.priority || PRIORITY.NORMAL,
+             retryAttempts: task.retryAttempts ?? this.config.retryAttempts,
+             timeout: task.timeout || this.config.taskTimeout,
+             dependencies: task.dependencies || [],
+             scheduledTime: task.scheduledTime || null,
+             createdAt: Date.now(),
+             startedAt: null,
+             completedAt: null,
+             state: TASK_STATE.PENDING,
+             result: null,
+             error: null,
+             attempts: 0
+         };
         
         this.tasks.set(taskId, taskInfo);
         this.metrics.totalTasks++;
@@ -154,19 +173,23 @@ class AsyncTaskQueue extends EventEmitter {
     
     /**
      * Enqueue task based on priority
+     * @param {any} task
      * @private
-     */
-    enqueueTask(task) {
-        switch (task.priority) {
-            case PRIORITY.HIGH:
-                this.queues.high.push(task);
-                break;
-            case PRIORITY.LOW:
-                this.queues.low.push(task);
-                break;
-            default:
-                this.queues.normal.push(task);
-        }
+      */
+     enqueueTask(task) {
+         switch (task.priority) {
+             case PRIORITY.HIGH:
+                 // @ts-ignore
+                 this.queues.high.push(task);
+                 break;
+             case PRIORITY.LOW:
+                 // @ts-ignore
+                 this.queues.low.push(task);
+                 break;
+             default:
+                 // @ts-ignore
+                 this.queues.normal.push(task);
+         }
         
         this.updateQueueDepth();
     }
@@ -212,12 +235,13 @@ class AsyncTaskQueue extends EventEmitter {
     
     /**
      * Execute a task
+     * @param {any} task
      * @private
-     */
-    async executeTask(task) {
-        task.state = TASK_STATE.RUNNING;
-        task.startedAt = Date.now();
-        task.attempts++;
+      */
+     async executeTask(task) {
+         task.state = TASK_STATE.RUNNING;
+         task.startedAt = Date.now();
+         task.attempts++;
         
         this.runningTasks.set(task.id, task);
         this.emit('task:started', { taskId: task.id, attempt: task.attempts });
@@ -243,7 +267,7 @@ class AsyncTaskQueue extends EventEmitter {
             
         } catch (error) {
             // Task failed
-            task.error = error.message;
+            task.error = error instanceof Error ? error.message : String(error);
             
             if (task.attempts < task.retryAttempts) {
                 // Retry task
@@ -261,12 +285,13 @@ class AsyncTaskQueue extends EventEmitter {
     
     /**
      * Run task handler
+     * @param {any} task
      * @private
-     */
-    async runTaskHandler(task) {
-        if (typeof task.handler === 'function') {
-            return await task.handler(task.params);
-        }
+      */
+     async runTaskHandler(task) {
+         if (typeof task.handler === 'function') {
+             return await task.handler(task.params);
+         }
         
         // If handler is a string, treat it as a tool name
         if (typeof task.handler === 'string') {
@@ -279,13 +304,14 @@ class AsyncTaskQueue extends EventEmitter {
     
     /**
      * Handle task completion
+     * @param {any} task
      * @private
-     */
-    handleTaskCompletion(task) {
-        // Update metrics
-        this.metrics.completedTasks++;
-        const duration = task.completedAt - task.startedAt;
-        this.updateAverageExecutionTime(duration);
+      */
+     handleTaskCompletion(task) {
+         // Update metrics
+         this.metrics.completedTasks++;
+         const duration = task.completedAt - task.startedAt;
+         this.updateAverageExecutionTime(duration);
         
         // Move to completed
         this.completedTasks.set(task.id, task);
@@ -305,11 +331,12 @@ class AsyncTaskQueue extends EventEmitter {
     
     /**
      * Handle task failure
+     * @param {any} task
      * @private
-     */
-    handleTaskFailure(task) {
-        // Update metrics
-        this.metrics.failedTasks++;
+      */
+     handleTaskFailure(task) {
+         // Update metrics
+         this.metrics.failedTasks++;
         
         // Move to dead letter queue
         this.deadLetterQueue.push(task);
@@ -328,11 +355,12 @@ class AsyncTaskQueue extends EventEmitter {
     
     /**
      * Retry a failed task
+     * @param {any} task
      * @private
-     */
-    async retryTask(task) {
-        task.state = TASK_STATE.RETRY;
-        this.metrics.retryCount++;
+      */
+     async retryTask(task) {
+         task.state = TASK_STATE.RETRY;
+         this.metrics.retryCount++;
         
         // Exponential backoff
         const delay = this.config.retryDelay * Math.pow(2, task.attempts - 1);
@@ -352,27 +380,31 @@ class AsyncTaskQueue extends EventEmitter {
     
     /**
      * Register task dependencies
+     * @param {string} taskId
+     * @param {string[]} dependencies
      * @private
-     */
-    async registerDependencies(taskId, dependencies) {
-        this.dependencies.set(taskId, new Set(dependencies));
+      */
+     async registerDependencies(taskId, dependencies) {
+         this.dependencies.set(taskId, new Set(dependencies));
         
-        // Register this task as dependent on each dependency
-        for (const depId of dependencies) {
-            if (!this.dependents.has(depId)) {
-                this.dependents.set(depId, new Set());
-            }
-            this.dependents.get(depId).add(taskId);
-        }
-    }
+         // Register this task as dependent on each dependency
+         for (const depId of dependencies) {
+             if (!this.dependents.has(depId)) {
+                 this.dependents.set(depId, new Set());
+             }
+             // @ts-ignore
+             this.dependents.get(depId).add(taskId);
+         }
+     }
     
     /**
      * Process tasks dependent on completed task
+     * @param {string} completedTaskId
      * @private
-     */
-    processDependentTasks(completedTaskId) {
-        const dependentTasks = this.dependents.get(completedTaskId);
-        if (!dependentTasks) return;
+      */
+     processDependentTasks(completedTaskId) {
+         const dependentTasks = this.dependents.get(completedTaskId);
+         if (!dependentTasks) return;
         
         for (const taskId of dependentTasks) {
             const deps = this.dependencies.get(taskId);
@@ -399,11 +431,12 @@ class AsyncTaskQueue extends EventEmitter {
     
     /**
      * Cancel tasks dependent on failed task
+     * @param {string} failedTaskId
      * @private
-     */
-    cancelDependentTasks(failedTaskId) {
-        const dependentTasks = this.dependents.get(failedTaskId);
-        if (!dependentTasks) return;
+      */
+     cancelDependentTasks(failedTaskId) {
+         const dependentTasks = this.dependents.get(failedTaskId);
+         if (!dependentTasks) return;
         
         for (const taskId of dependentTasks) {
             const task = this.queues.delayed.get(taskId);
@@ -431,20 +464,22 @@ class AsyncTaskQueue extends EventEmitter {
     
     /**
      * Schedule a task for future execution
+     * @param {string} taskId
+     * @param {number} scheduledTime
      * @private
-     */
-    scheduleTask(taskId, scheduledTime) {
-        const delay = scheduledTime - Date.now();
+      */
+     scheduleTask(taskId, scheduledTime) {
+         const delay = scheduledTime - Date.now();
         
-        setTimeout(() => {
-            const task = this.queues.scheduled.get(taskId);
-            if (task) {
-                this.queues.scheduled.delete(taskId);
-                this.enqueueTask(task);
-                this.emit('task:scheduled', { taskId });
-            }
-        }, delay);
-    }
+         setTimeout(() => {
+             const task = this.queues.scheduled.get(taskId);
+             if (task) {
+                 this.queues.scheduled.delete(taskId);
+                 this.enqueueTask(task);
+                 this.emit('task:scheduled', { taskId });
+             }
+         }, delay);
+     }
     
     /**
      * Process scheduled tasks that are ready
@@ -473,6 +508,7 @@ class AsyncTaskQueue extends EventEmitter {
         // Remove from queue
         for (const queue of Object.values(this.queues)) {
             if (Array.isArray(queue)) {
+                // @ts-ignore
                 const index = queue.findIndex(t => t.id === taskId);
                 if (index !== -1) {
                     queue.splice(index, 1);
@@ -515,6 +551,7 @@ class AsyncTaskQueue extends EventEmitter {
         }
         
         // Check dead letter queue
+        // @ts-ignore
         const deadTask = this.deadLetterQueue.find(t => t.id === taskId);
         if (deadTask) return deadTask;
         
@@ -544,12 +581,13 @@ class AsyncTaskQueue extends EventEmitter {
     
     /**
      * Update average execution time
+     * @param {number} duration
      * @private
-     */
-    updateAverageExecutionTime(duration) {
-        const totalTime = this.metrics.averageExecutionTime * (this.metrics.completedTasks - 1);
-        this.metrics.averageExecutionTime = (totalTime + duration) / this.metrics.completedTasks;
-    }
+      */
+     updateAverageExecutionTime(duration) {
+         const totalTime = this.metrics.averageExecutionTime * (this.metrics.completedTasks - 1);
+         this.metrics.averageExecutionTime = (totalTime + duration) / this.metrics.completedTasks;
+     }
     
     /**
      * Update queue depth metric

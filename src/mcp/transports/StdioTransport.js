@@ -6,6 +6,9 @@ const readline = require('readline');
  * Used for process-based communication between client and server
  */
 class StdioTransport extends EventEmitter {
+    /**
+     * @param {import('child_process').ChildProcess | null} [childProcess]
+     */
     constructor(childProcess = null) {
         super();
         
@@ -42,33 +45,39 @@ class StdioTransport extends EventEmitter {
         }
         
         // Read from child stdout
-        this.rl = readline.createInterface({
-            input: this.childProcess.stdout,
-            crlfDelay: Infinity
-        });
+        if (this.childProcess && this.childProcess.stdout) {
+            this.rl = readline.createInterface({
+                input: this.childProcess.stdout,
+                crlfDelay: Infinity
+            });
+        }
         
-        this.rl.on('line', (line) => {
-            try {
-                const message = JSON.parse(line);
-                this.emit('message', message);
-            } catch (error) {
-                console.error('Failed to parse message:', error);
-            }
-        });
+        if (this.rl) {
+            this.rl.on('line', (line) => {
+                try {
+                    const message = JSON.parse(line);
+                    this.emit('message', message);
+                } catch (error) {
+                    console.error('Failed to parse message:', error);
+                }
+            });
+        }
         
-        this.childProcess.on('error', (error) => {
+        this.childProcess.on('error', (/** @type {any} */ error) => {
             this.emit('error', error);
         });
         
-        this.childProcess.on('exit', (code) => {
+        this.childProcess.on('exit', (/** @type {any} */ code) => {
             this.isConnected = false;
             this.emit('close', code);
         });
         
         // Handle stderr for logging
-        this.childProcess.stderr.on('data', (data) => {
-            console.error('Server stderr:', data.toString());
-        });
+        if (this.childProcess.stderr) {
+            this.childProcess.stderr.on('data', (/** @type {any} */ data) => {
+                console.error('Server stderr:', data.toString());
+            });
+        }
     }
     
     /**
@@ -112,7 +121,9 @@ class StdioTransport extends EventEmitter {
         
         if (this.childProcess) {
             // Client mode - write to child stdin
-            this.childProcess.stdin.write(json + '\n');
+            if (this.childProcess.stdin) {
+                this.childProcess.stdin.write(json + '\n');
+            }
         } else {
             // Server mode - write to stdout
             process.stdout.write(json + '\n');

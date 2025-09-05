@@ -4,6 +4,14 @@ const yaml = require('js-yaml');
 const { NODE_TYPE } = require('../mcp/orchestration/ToolOrchestrationEngine');
 
 /**
+/**
+ * @typedef {import('./workflowTypes.js').Workflow} Workflow
+ * @typedef {import('./workflowTypes.js').Node} Node
+ * @typedef {import('./workflowTypes.js').Connection} Connection
+ * @typedef {import('./workflowTypes.js').NodeTypeDefinition} NodeTypeDefinition
+ */
+
+/**
  * 工作流可视化管理器
  * 管理工作流的可视化表示、编辑和转换
  */
@@ -11,13 +19,13 @@ class WorkflowVisualManager extends EventEmitter {
     constructor() {
         super();
         
-        // 工作流存储
+        /** @type {Map<string, Workflow>} */
         this.workflows = new Map();
         
-        // 当前编辑的工作流
+        /** @type {Workflow | null} */
         this.currentWorkflow = null;
         
-        // 节点类型定义
+        /** @type {Record<string, NodeTypeDefinition>} */
         this.nodeTypes = {
             [NODE_TYPE.TOOL]: {
                 label: '工具节点',
@@ -136,10 +144,11 @@ class WorkflowVisualManager extends EventEmitter {
     /**
      * 创建新工作流
      * @param {string} name - 工作流名称
-     * @param {string} description - 工作流描述
-     * @returns {Object} 工作流对象
+     * @param {string} [description=''] - 工作流描述
+     * @returns {Workflow} 工作流对象
      */
     createWorkflow(name, description = '') {
+        /** @type {Workflow} */
         const workflow = {
             id: uuidv4(),
             name,
@@ -166,9 +175,9 @@ class WorkflowVisualManager extends EventEmitter {
     /**
      * 添加节点到工作流
      * @param {string} nodeType - 节点类型
-     * @param {Object} position - 节点位置 {x, y}
-     * @param {Object} properties - 节点属性
-     * @returns {Object} 节点对象
+     * @param {{x: number, y: number}} [position={ x: 0, y: 0 }] - 节点位置 {x, y}
+     * @param {Object<string, any>} [properties={}] - 节点属性
+     * @returns {Node} 节点对象
      */
     addNode(nodeType, position = { x: 0, y: 0 }, properties = {}) {
         if (!this.currentWorkflow) {
@@ -179,6 +188,7 @@ class WorkflowVisualManager extends EventEmitter {
             throw new Error(`未知的节点类型: ${nodeType}`);
         }
         
+        /** @type {Node} */
         const node = {
             id: uuidv4(),
             type: nodeType,
@@ -198,20 +208,29 @@ class WorkflowVisualManager extends EventEmitter {
     /**
      * 初始化节点属性
      * @private
+     * @param {string} nodeType
+     * @param {Object<string, any>} providedProps
+     * @returns {Object<string, any>}
      */
     initializeNodeProperties(nodeType, providedProps) {
         const nodeTypeDef = this.nodeTypes[nodeType];
         const props = {};
         
-        for (const [key, def] of Object.entries(nodeTypeDef.properties)) {
-            if (providedProps[key] !== undefined) {
-                props[key] = providedProps[key];
-            } else if (def.default !== undefined) {
-                props[key] = def.default;
-            } else if (def.type === 'array') {
-                props[key] = [];
-            } else if (def.type === 'object') {
-                props[key] = {};
+        if (nodeTypeDef && nodeTypeDef.properties) {
+            for (const [key, def] of Object.entries(nodeTypeDef.properties)) {
+                if (providedProps[key] !== undefined) {
+                    // @ts-ignore
+                    props[key] = providedProps[key];
+                } else if (def.default !== undefined) {
+                    // @ts-ignore
+                    props[key] = def.default;
+                } else if (def.type === 'array') {
+                    // @ts-ignore
+                    props[key] = [];
+                } else if (def.type === 'object') {
+                    // @ts-ignore
+                    props[key] = {};
+                }
             }
         }
         
@@ -221,10 +240,16 @@ class WorkflowVisualManager extends EventEmitter {
     /**
      * 连接两个节点
      * @param {string} sourceNodeId - 源节点ID
-     * @param {number} sourceOutput - 源节点输出端口索引
+     * @param {number} [sourceOutput=0] - 源节点输出端口索引
      * @param {string} targetNodeId - 目标节点ID
-     * @param {number} targetInput - 目标节点输入端口索引
-     * @returns {Object} 连接对象
+     * @param {number} [targetInput=0] - 目标节点输入端口索引
+     * @returns {Connection} 连接对象
+     */
+    /**
+     * @param {string} sourceNodeId
+     * @param {number | undefined} sourceOutput
+     * @param {string} targetNodeId
+     * @param {number | undefined} targetInput
      */
     connectNodes(sourceNodeId, sourceOutput = 0, targetNodeId, targetInput = 0) {
         if (!this.currentWorkflow) {
@@ -232,8 +257,8 @@ class WorkflowVisualManager extends EventEmitter {
         }
         
         // 验证节点存在
-        const sourceNode = this.currentWorkflow.nodes.find(n => n.id === sourceNodeId);
-        const targetNode = this.currentWorkflow.nodes.find(n => n.id === targetNodeId);
+        const sourceNode = this.currentWorkflow.nodes.find((/** @type {{ id: string; }} */ n) => n.id === sourceNodeId);
+        const targetNode = this.currentWorkflow.nodes.find((/** @type {{ id: string; }} */ n) => n.id === targetNodeId);
         
         if (!sourceNode || !targetNode) {
             throw new Error('源节点或目标节点不存在');
@@ -244,6 +269,7 @@ class WorkflowVisualManager extends EventEmitter {
             throw new Error('连接会产生循环，不允许');
         }
         
+        /** @type {Connection} */
         const connection = {
             id: uuidv4(),
             source: sourceNodeId,
@@ -266,6 +292,9 @@ class WorkflowVisualManager extends EventEmitter {
     /**
      * 检查连接是否会产生循环
      * @private
+     * @param {string} sourceId
+     * @param {string} targetId
+     * @returns {boolean}
      */
     wouldCreateCycle(sourceId, targetId) {
         const visited = new Set();
@@ -284,12 +313,14 @@ class WorkflowVisualManager extends EventEmitter {
             
             visited.add(nodeId);
             
-            // 找到所有从当前节点出发的连接
-            const outgoingConnections = this.currentWorkflow.connections
-                .filter(c => c.source === nodeId)
-                .map(c => c.target);
-            
-            stack.push(...outgoingConnections);
+            if (this.currentWorkflow) {
+                // 找到所有从当前节点出发的连接
+                const outgoingConnections = this.currentWorkflow.connections
+                    .filter((/** @type {{ source: string; }} */ c) => c.source === nodeId)
+                    .map((/** @type {{ target: any; }} */ c) => c.target);
+                
+                stack.push(...outgoingConnections);
+            }
         }
         
         return false;
@@ -306,11 +337,11 @@ class WorkflowVisualManager extends EventEmitter {
         
         // 删除与节点相关的所有连接
         this.currentWorkflow.connections = this.currentWorkflow.connections.filter(
-            c => c.source !== nodeId && c.target !== nodeId
+            (/** @type {{ source: string; target: string; }} */ c) => c.source !== nodeId && c.target !== nodeId
         );
         
         // 删除节点
-        const nodeIndex = this.currentWorkflow.nodes.findIndex(n => n.id === nodeId);
+        const nodeIndex = this.currentWorkflow.nodes.findIndex((/** @type {{ id: string; }} */ n) => n.id === nodeId);
         if (nodeIndex !== -1) {
             this.currentWorkflow.nodes.splice(nodeIndex, 1);
             this.currentWorkflow.updatedAt = Date.now();
@@ -322,14 +353,14 @@ class WorkflowVisualManager extends EventEmitter {
     /**
      * 更新节点属性
      * @param {string} nodeId - 节点ID
-     * @param {Object} properties - 新属性值
+     * @param {Object<string, any>} properties - 新属性值
      */
     updateNode(nodeId, properties) {
         if (!this.currentWorkflow) {
             throw new Error('没有当前编辑的工作流');
         }
         
-        const node = this.currentWorkflow.nodes.find(n => n.id === nodeId);
+        const node = this.currentWorkflow.nodes.find((/** @type {{ id: string; }} */ n) => n.id === nodeId);
         if (!node) {
             throw new Error('节点不存在');
         }
@@ -349,7 +380,7 @@ class WorkflowVisualManager extends EventEmitter {
     
     /**
      * 将可视化工作流转换为YAML格式
-     * @param {Object} workflow - 工作流对象
+     * @param {Workflow | null} [workflow=null] - 工作流对象
      * @returns {string} YAML字符串
      */
     toYAML(workflow = null) {
@@ -379,14 +410,16 @@ class WorkflowVisualManager extends EventEmitter {
     /**
      * 构建执行阶段
      * @private
+     * @param {Workflow} workflow
+     * @returns {any[]}
      */
     buildExecutionStages(workflow) {
         const stages = [];
         const visited = new Set();
         
         // 找到所有起始节点（没有输入的节点）
-        const startNodes = workflow.nodes.filter(node => {
-            const hasInput = workflow.connections.some(c => c.target === node.id);
+        const startNodes = workflow.nodes.filter((/** @type {{ id: any; }} */ node) => {
+            const hasInput = workflow.connections.some((/** @type {{ target: any; }} */ c) => c.target === node.id);
             return !hasInput;
         });
         
@@ -414,6 +447,10 @@ class WorkflowVisualManager extends EventEmitter {
     /**
      * 将节点转换为执行阶段
      * @private
+     * @param {Node} node
+     * @param {Workflow} workflow
+     * @param {Set<string>} visited
+     * @returns {any}
      */
     nodeToStage(node, workflow, visited) {
         if (visited.has(node.id)) {
@@ -435,16 +472,16 @@ class WorkflowVisualManager extends EventEmitter {
                 
             case NODE_TYPE.PARALLEL:
                 const parallelBranches = this.getChildNodes(node.id, workflow)
-                    .map(child => this.nodeToStage(child, workflow, visited))
-                    .filter(s => s !== null);
-                stage = { parallel: parallelBranches };
+                    .map((/** @type {any} */ child) => this.nodeToStage(child, workflow, visited))
+                    .filter((/** @type {null} */ s) => s !== null);
+                stage = { parallel: parallelBranches.flat() };
                 break;
                 
             case NODE_TYPE.SEQUENCE:
                 const sequenceSteps = this.getChildNodes(node.id, workflow)
-                    .map(child => this.nodeToStage(child, workflow, visited))
-                    .filter(s => s !== null);
-                stage = { sequence: sequenceSteps };
+                    .map((/** @type {any} */ child) => this.nodeToStage(child, workflow, visited))
+                    .filter((/** @type {null} */ s) => s !== null);
+                stage = { sequence: sequenceSteps.flat() };
                 break;
                 
             case NODE_TYPE.CONDITIONAL:
@@ -458,6 +495,7 @@ class WorkflowVisualManager extends EventEmitter {
                 break;
                 
             case NODE_TYPE.LOOP:
+                /** @type {any} */
                 const loopConfig = {
                     do: node.properties.do || []
                 };
@@ -520,7 +558,7 @@ class WorkflowVisualManager extends EventEmitter {
             // 单个下游节点，继续链式处理
             const nextStage = this.nodeToStage(nextNodes[0], workflow, visited);
             if (nextStage) {
-                return [stage, nextStage];
+                return [stage, nextStage].flat();
             }
         } else if (nextNodes.length > 1) {
             // 多个下游节点，作为并行处理
@@ -528,7 +566,7 @@ class WorkflowVisualManager extends EventEmitter {
                 .map(child => this.nodeToStage(child, workflow, visited))
                 .filter(s => s !== null);
             if (parallelStages.length > 0) {
-                return [stage, { parallel: parallelStages }];
+                return [stage, { parallel: parallelStages.flat() }];
             }
         }
         
@@ -538,16 +576,19 @@ class WorkflowVisualManager extends EventEmitter {
     /**
      * 获取节点的下游节点
      * @private
+     * @param {string} nodeId
+     * @param {Workflow} workflow
+     * @returns {Node[]}
      */
     getChildNodes(nodeId, workflow) {
         const childConnections = workflow.connections.filter(c => c.source === nodeId);
-        return childConnections.map(c => workflow.nodes.find(n => n.id === c.target)).filter(n => n);
+        return childConnections.map(c => workflow.nodes.find(n => n.id === c.target)).filter(/** @returns {n is Node} */ n => !!n);
     }
     
     /**
      * 从YAML加载工作流
      * @param {string} yamlContent - YAML内容
-     * @returns {Object} 工作流对象
+     * @returns {Workflow} 工作流对象
      */
     fromYAML(yamlContent) {
         try {
@@ -566,13 +607,21 @@ class WorkflowVisualManager extends EventEmitter {
             
             return workflow;
         } catch (error) {
-            throw new Error(`解析YAML失败: ${error.message}`);
+            if (error instanceof Error) {
+                throw new Error(`解析YAML失败: ${error.message}`);
+            }
+            throw new Error('解析YAML时发生未知错误');
         }
     }
     
     /**
      * 将执行阶段转换为可视化节点
      * @private
+     * @param {any[]} stages
+     * @param {Workflow} workflow
+     * @param {string | null} [parentNodeId=null]
+     * @param {{x: number, y: number}} [position={ x: 100, y: 100 }]
+     * @returns {string | null}
      */
     stagesToNodes(stages, workflow, parentNodeId = null, position = { x: 100, y: 100 }) {
         let lastNodeId = parentNodeId;
@@ -592,7 +641,7 @@ class WorkflowVisualManager extends EventEmitter {
                 currentY += 100; // 垂直间距
                 
                 // 处理嵌套结构
-                if (nodeInfo.children) {
+                if (nodeInfo.children && Array.isArray(nodeInfo.children)) {
                     this.stagesToNodes(nodeInfo.children, workflow, node.id, { x: position.x + 200, y: currentY });
                 }
             }
@@ -604,6 +653,9 @@ class WorkflowVisualManager extends EventEmitter {
     /**
      * 将单个阶段转换为节点信息
      * @private
+     * @param {any} stage
+     * @param {{x: number, y: number}} position
+     * @returns {{type: string, position: {x: number, y: number}, properties: any, children?: any[]} | null}
      */
     stageToNode(stage, position) {
         // 工具节点
@@ -654,17 +706,18 @@ class WorkflowVisualManager extends EventEmitter {
         
         // 循环节点
         if (stage.loop) {
+            /** @type {any} */
             const props = { do: stage.loop.do };
             
             if (stage.loop.forEach) {
-                props.type = 'forEach';
-                props.forEach = stage.loop.forEach;
+                props['type'] = 'forEach';
+                props['forEach'] = stage.loop.forEach;
             } else if (stage.loop.while) {
-                props.type = 'while';
-                props.while = stage.loop.while;
+                props['type'] = 'while';
+                props['while'] = stage.loop.while;
             } else if (stage.loop.count) {
-                props.type = 'count';
-                props.count = stage.loop.count;
+                props['type'] = 'count';
+                props['count'] = stage.loop.count;
             }
             
             return {
@@ -719,8 +772,8 @@ class WorkflowVisualManager extends EventEmitter {
     
     /**
      * 验证工作流
-     * @param {Object} workflow - 工作流对象
-     * @returns {Object} 验证结果 {valid: boolean, errors: string[]}
+     * @param {Workflow | null} [workflow=null] - 工作流对象
+     * @returns {{valid: boolean, errors: string[]}} 验证结果 {valid: boolean, errors: string[]}
      */
     validateWorkflow(workflow = null) {
         const wf = workflow || this.currentWorkflow;
@@ -781,11 +834,14 @@ class WorkflowVisualManager extends EventEmitter {
     /**
      * 检查工作流是否有循环
      * @private
+     * @param {Workflow} workflow
+     * @returns {boolean}
      */
     hasCycle(workflow) {
         const visited = new Set();
         const recStack = new Set();
         
+        /** @param {string} nodeId */
         const hasCycleDFS = (nodeId) => {
             visited.add(nodeId);
             recStack.add(nodeId);
@@ -822,7 +878,7 @@ class WorkflowVisualManager extends EventEmitter {
     /**
      * 获取工作流摘要信息
      * @param {string} workflowId - 工作流ID
-     * @returns {Object} 摘要信息
+     * @returns {Object | null} 摘要信息
      */
     getWorkflowSummary(workflowId) {
         const workflow = this.workflows.get(workflowId);
@@ -830,6 +886,7 @@ class WorkflowVisualManager extends EventEmitter {
             return null;
         }
         
+        /** @type {Object<string, number>} */
         const nodeTypeCounts = {};
         for (const node of workflow.nodes) {
             nodeTypeCounts[node.type] = (nodeTypeCounts[node.type] || 0) + 1;
@@ -853,7 +910,7 @@ class WorkflowVisualManager extends EventEmitter {
      * 克隆工作流
      * @param {string} workflowId - 要克隆的工作流ID
      * @param {string} newName - 新工作流名称
-     * @returns {Object} 克隆的工作流
+     * @returns {Workflow} 克隆的工作流
      */
     cloneWorkflow(workflowId, newName) {
         const original = this.workflows.get(workflowId);
@@ -861,6 +918,7 @@ class WorkflowVisualManager extends EventEmitter {
             throw new Error('原工作流不存在');
         }
         
+        /** @type {Workflow} */
         const cloned = {
             ...original,
             id: uuidv4(),
@@ -871,7 +929,7 @@ class WorkflowVisualManager extends EventEmitter {
             connections: []
         };
         
-        // 创建节点ID映射
+        /** @type {Object<string, string>} */
         const idMap = {};
         for (let i = 0; i < original.nodes.length; i++) {
             idMap[original.nodes[i].id] = cloned.nodes[i].id;

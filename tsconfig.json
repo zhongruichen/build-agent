@@ -14,7 +14,8 @@
     "checkJs": true
   },
   "include": [
-    "src/**/*.js"
+    "src/**/*.js",
+    "**/*.d.ts"
   ],
   "exclude": [
     "node_modules",

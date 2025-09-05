@@ -13,16 +13,16 @@ class MCPToolAdapter {
     
     /**
      * Initialize the MCP tool adapter
-     * @param {Object} toolContext - Context for tool execution
-     */
-    async initialize(toolContext) {
-        this.toolContext = toolContext;
+     * @param {any} toolContext - Context for tool execution
+      */
+     async initialize(toolContext) {
+         this.toolContext = toolContext;
         
-        // Create MCP server
-        this.mcpServer = new MCPServer({
-            name: 'multi-agent-helper-tools',
-            version: '1.0.0'
-        });
+         // Create MCP server
+         this.mcpServer = new MCPServer({
+             name: 'multi-agent-helper-tools',
+             version: '1.0.0'
+         });
         
         // Register all tools from the tool registry
         this.registerTools();
@@ -50,10 +50,12 @@ class MCPToolAdapter {
             const inputSchema = this.createInputSchema(toolName, toolDef);
             
             // Register the tool with MCP server
+            if (!this.mcpServer) return;
             this.mcpServer.registerTool({
                 name: mcpToolName,
                 description: this.getToolDescription(toolName),
                 inputSchema: inputSchema,
+                /** @param {any} args */
                 handler: async (args) => {
                     return this.executeToolWithMCP(toolName, args);
                 }
@@ -66,6 +68,7 @@ class MCPToolAdapter {
      */
     registerResources() {
         // Register project structure resource
+        if (!this.mcpServer) return;
         this.mcpServer.registerResource({
             uri: 'workspace://project-structure',
             name: 'Project Structure',
@@ -80,6 +83,7 @@ class MCPToolAdapter {
         });
         
         // Register task context resource
+        if (!this.mcpServer) return;
         this.mcpServer.registerResource({
             uri: 'workspace://task-context',
             name: 'Task Context',
@@ -94,12 +98,14 @@ class MCPToolAdapter {
         });
         
         // Register agent status resource
+        if (!this.mcpServer) return;
         this.mcpServer.registerResource({
             uri: 'workspace://agent-status',
             name: 'Agent Status',
             description: 'Status of all active agents',
             mimeType: 'application/json',
             handler: async () => {
+                /** @type {{ agents: any[], activeTasks: any[] }} */
                 const status = {
                     agents: [],
                     activeTasks: []
@@ -108,6 +114,7 @@ class MCPToolAdapter {
                 // Collect agent status information
                 if (this.toolContext && this.toolContext.agents) {
                     for (const [name, agent] of Object.entries(this.toolContext.agents)) {
+                        // @ts-ignore
                         status.agents.push({
                             name: name,
                             id: agent.id,
@@ -128,6 +135,7 @@ class MCPToolAdapter {
         const prompts = require('../agents/prompts');
         
         // Register orchestrator prompt
+        if (!this.mcpServer) return;
         this.mcpServer.registerPrompt({
             name: 'orchestrator',
             description: 'Orchestrator agent system prompt',
@@ -138,6 +146,7 @@ class MCPToolAdapter {
                     required: false
                 }
             ],
+            /** @param {any} args */
             handler: async (args) => {
                 let prompt = prompts.ORCHESTRATOR_PROMPT;
                 if (args.taskContext) {
@@ -148,6 +157,7 @@ class MCPToolAdapter {
         });
         
         // Register worker prompt
+        if (!this.mcpServer) return;
         this.mcpServer.registerPrompt({
             name: 'worker',
             description: 'Worker agent system prompt',
@@ -158,6 +168,7 @@ class MCPToolAdapter {
                     required: false
                 }
             ],
+            /** @param {any} args */
             handler: async (args) => {
                 let prompt = prompts.WORKER_PROMPT;
                 if (args.subtask) {
@@ -168,6 +179,7 @@ class MCPToolAdapter {
         });
         
         // Register synthesizer prompt
+        if (!this.mcpServer) return;
         this.mcpServer.registerPrompt({
             name: 'synthesizer',
             description: 'Synthesizer agent system prompt',
@@ -210,6 +222,7 @@ class MCPToolAdapter {
             'agent.createSubTask': 'agent_create_subtask'
         };
         
+        // @ts-ignore
         return mapping[toolName] || toolName.replace(/\./g, '_');
     }
     
@@ -244,6 +257,7 @@ class MCPToolAdapter {
             'agent.createSubTask': 'Create a new subtask'
         };
         
+        // @ts-ignore
         return descriptions[toolName] || `Execute ${toolName}`;
     }
     
@@ -370,6 +384,7 @@ class MCPToolAdapter {
         };
         
         // Return default schema for tools without specific schemas
+        // @ts-ignore
         return schemas[toolName] || {
             type: 'object',
             properties: {},
@@ -400,6 +415,7 @@ class MCPToolAdapter {
             logger.logLine(`Arguments: ${JSON.stringify(args)}`);
             
             // Extract parameters using the tool's param extractor
+            // @ts-ignore
             const params = toolDef.paramExtractor(args, this.toolContext);
             
             // Execute the tool
@@ -419,15 +435,15 @@ class MCPToolAdapter {
     
     /**
      * Get the MCP server instance
-     * @returns {MCPServer} MCP server instance
+     * @returns {MCPServer | null}
      */
     getServer() {
         return this.mcpServer;
     }
-    
+   
     /**
      * Update tool context
-     * @param {Object} context - New tool context
+     * @param {any} context - New tool context
      */
     updateContext(context) {
         this.toolContext = context;

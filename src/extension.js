@@ -166,7 +166,8 @@ async function activate(context) {
         await mcpManager.initialize(context);
         logger.log('MCP Manager initialized successfully');
     } catch (error) {
-        logger.logError(`Failed to initialize MCP Manager: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.logError(`Failed to initialize MCP Manager: ${errorMessage}`);
     }
     
     // Initialize Workflow Service
@@ -409,8 +410,9 @@ async function activate(context) {
                         await vscode.window.showTextDocument(document);
                     });
                 } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
                     vscode.window.showErrorMessage(
-                        `工作流执行失败: ${error.message}`
+                        `工作流执行失败: ${errorMessage}`
                     );
                 }
             }
@@ -444,8 +446,9 @@ async function activate(context) {
                         workflow
                     });
                 } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
                     vscode.window.showErrorMessage(
-                        `导入工作流失败: ${error.message}`
+                        `导入工作流失败: ${errorMessage}`
                     );
                 }
             }
@@ -471,12 +474,12 @@ async function activate(context) {
             
             if (selected) {
                 const options = {
-                    defaultUri: vscode.Uri.file(
+                    defaultUri: vscode.workspace.workspaceFolders ? vscode.Uri.file(
                         path.join(
                             vscode.workspace.workspaceFolders[0].uri.fsPath,
                             `${selected.workflow.name}.yaml`
                         )
-                    ),
+                    ) : undefined,
                     filters: {
                         'YAML文件': ['yaml', 'yml']
                     }
@@ -495,8 +498,9 @@ async function activate(context) {
                             `工作流已导出到: ${fileUri.fsPath}`
                         );
                     } catch (error) {
+                        const errorMessage = error instanceof Error ? error.message : String(error);
                         vscode.window.showErrorMessage(
-                            `导出工作流失败: ${error.message}`
+                            `导出工作流失败: ${errorMessage}`
                         );
                     }
                 }

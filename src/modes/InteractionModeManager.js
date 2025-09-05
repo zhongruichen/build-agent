@@ -24,6 +24,15 @@ const TRANSITION_STATE = {
  * Handles dynamic mode switching, context preservation, and intelligent routing
  */
 class InteractionModeManager extends EventEmitter {
+    /**
+     * @param {object} [options]
+     * @param {string} [options.defaultMode]
+     * @param {boolean} [options.contextRetention]
+     * @param {number} [options.maxContextSize]
+     * @param {boolean} [options.autoModeDetection]
+     * @param {boolean} [options.persistenceEnabled]
+     * @param {number} [options.transitionDelay]
+     */
     constructor(options = {}) {
         super();
         
@@ -43,6 +52,7 @@ class InteractionModeManager extends EventEmitter {
         
         // Context management
         this.conversationContext = new Map();
+        /** @type {any[]} */
         this.contextHistory = [];
         this.contextRelevanceScores = new Map();
         
@@ -165,6 +175,7 @@ class InteractionModeManager extends EventEmitter {
             throw new Error(`Invalid mode: ${mode}`);
         }
         
+        // @ts-ignore
         if (this.currentMode === mode && !options.force) {
             return {
                 success: true,
@@ -233,7 +244,7 @@ class InteractionModeManager extends EventEmitter {
             this.emit('mode:transition:failed', {
                 from: previousMode,
                 to: mode,
-                error: error.message
+                error: error instanceof Error ? error.message : String(error)
             });
             
             throw error;
@@ -243,6 +254,9 @@ class InteractionModeManager extends EventEmitter {
     /**
      * Save current context before mode switch
      * @private
+     */
+    /**
+     * @param {string} mode
      */
     async saveCurrentContext(mode) {
         const context = {
@@ -271,6 +285,9 @@ class InteractionModeManager extends EventEmitter {
      * Load relevant context for new mode
      * @private
      */
+    /**
+     * @param {string} mode
+     */
     async loadRelevantContext(mode) {
         // Score historical contexts for relevance
         const scoredContexts = this.contextHistory.map(ctx => ({
@@ -297,6 +314,10 @@ class InteractionModeManager extends EventEmitter {
     /**
      * Calculate context relevance score
      * @private
+     */
+    /**
+     * @param {any} context
+     * @param {string} targetMode
      */
     calculateContextRelevance(context, targetMode) {
         let score = 0;
@@ -327,6 +348,9 @@ class InteractionModeManager extends EventEmitter {
      * Merge context into current session
      * @private
      */
+    /**
+     * @param {any} context
+     */
     mergeContext(context) {
         if (context.conversation) {
             for (const [key, value] of context.conversation) {
@@ -345,90 +369,95 @@ class InteractionModeManager extends EventEmitter {
     
     /**
      * Cleanup mode-specific resources
+     * @param {string} mode
      * @private
-     */
-    async cleanupMode(mode) {
-        switch (mode) {
-            case INTERACTION_MODE.AGENT_ENABLED:
-                // Shutdown active agents
-                this.emit('agents:shutdown');
-                break;
+      */
+     async cleanupMode(mode) {
+         switch (mode) {
+             case INTERACTION_MODE.AGENT_ENABLED:
+                 // Shutdown active agents
+                 this.emit('agents:shutdown');
+                 break;
                 
-            case INTERACTION_MODE.HYBRID:
-                // Clear selective agent cache
-                this.emit('agents:clear:selective');
-                break;
+             case INTERACTION_MODE.HYBRID:
+                 // Clear selective agent cache
+                 this.emit('agents:clear:selective');
+                 break;
                 
-            case INTERACTION_MODE.DIRECT:
-                // Clear direct mode cache
-                this.conversationContext.clear();
-                break;
-        }
-    }
+             case INTERACTION_MODE.DIRECT:
+                 // Clear direct mode cache
+                 this.conversationContext.clear();
+                 break;
+         }
+     }
     
     /**
      * Initialize mode-specific resources
+     * @param {string} mode
+     * @param {object} [options]
+     * @param {string} [options.systemPrompt]
+     * @param {string} [options.persona]
      * @private
-     */
-    async initializeMode(mode, options = {}) {
-        const config = this.modeConfigurations.get(mode);
+      */
+     async initializeMode(mode, options = {}) {
+         const config = this.modeConfigurations.get(mode);
         
-        switch (mode) {
-            case INTERACTION_MODE.AGENT_ENABLED:
-                // Initialize all agents
-                this.emit('agents:initialize', {
-                    full: true,
-                    config: config
-                });
-                break;
+         switch (mode) {
+             case INTERACTION_MODE.AGENT_ENABLED:
+                 // Initialize all agents
+                 this.emit('agents:initialize', {
+                     full: true,
+                     config: config
+                 });
+                 break;
                 
-            case INTERACTION_MODE.HYBRID:
-                // Initialize selective agent system
-                this.emit('agents:initialize', {
-                    selective: true,
-                    config: config
-                });
-                break;
+             case INTERACTION_MODE.HYBRID:
+                 // Initialize selective agent system
+                 this.emit('agents:initialize', {
+                     selective: true,
+                     config: config
+                 });
+                 break;
                 
-            case INTERACTION_MODE.DIRECT:
-                // Setup direct conversation
-                this.emit('direct:initialize', {
-                    config: config
-                });
-                break;
-        }
+             case INTERACTION_MODE.DIRECT:
+                 // Setup direct conversation
+                 this.emit('direct:initialize', {
+                     config: config
+                 });
+                 break;
+         }
         
-        // Apply custom configuration if provided
-        if (options.systemPrompt) {
-            this.updateSystemPrompt(mode, options.systemPrompt);
-        }
+         // Apply custom configuration if provided
+         if (options.systemPrompt) {
+             this.updateSystemPrompt(mode, options.systemPrompt);
+         }
         
-        if (options.persona) {
-            await this.activatePersona(options.persona);
-        }
-    }
+         if (options.persona) {
+             await this.activatePersona(options.persona);
+         }
+     }
     
     /**
      * Create or update a persona
      * @param {string} name - Persona name
-     * @param {Object} config - Persona configuration
-     */
-    async createPersona(name, config) {
-        const persona = {
-            id: uuidv4(),
-            name,
-            description: config.description || '',
-            systemInstructions: config.systemInstructions || '',
-            knowledgeDomains: config.knowledgeDomains || [],
-            responseStyle: config.responseStyle || 'professional',
-            constraints: config.constraints || [],
-            temperature: config.temperature || 0.7,
-            maxTokens: config.maxTokens || 4096,
-            preferredMode: config.preferredMode || INTERACTION_MODE.HYBRID,
-            customVariables: config.customVariables || {},
-            createdAt: Date.now(),
-            updatedAt: Date.now()
-        };
+     * @param {any} config - Persona configuration
+      */
+     async createPersona(name, config) {
+         const persona = {
+             id: uuidv4(),
+             name,
+             description: config.description || '',
+             systemInstructions: config.systemInstructions || '',
+             knowledgeDomains: config.knowledgeDomains || [],
+             responseStyle: config.responseStyle || 'professional',
+             constraints: config.constraints || [],
+             temperature: config.temperature || 0.7,
+             maxTokens: config.maxTokens || 4096,
+             preferredMode: config.preferredMode || INTERACTION_MODE.HYBRID,
+             customVariables: config.customVariables || {},
+             createdAt: Date.now(),
+             updatedAt: Date.now()
+         };
         
         this.personas.set(name, persona);
         
@@ -523,28 +552,31 @@ class InteractionModeManager extends EventEmitter {
     /**
      * Process user input with mode-aware routing
      * @param {string} input - User input
-     * @param {Object} options - Processing options
-     */
-    async processInput(input, options = {}) {
-        this.metrics.totalInteractions++;
+     * @param {string} input
+     * @param {object} [options]
+     * @param {boolean} [options.forceMode]
+     * @param {boolean} [options.autoSwitch]
+      */
+     async processInput(input, options = {}) {
+         this.metrics.totalInteractions++;
         
-        // Auto-detect and suggest mode if enabled
-        if (this.config.autoModeDetection && !options.forceMode) {
-            const suggestedMode = this.detectOptimalMode(input);
+         // Auto-detect and suggest mode if enabled
+         if (this.config.autoModeDetection && !options.forceMode) {
+             const suggestedMode = this.detectOptimalMode(input);
             
-            if (suggestedMode !== this.currentMode) {
-                this.emit('mode:suggestion', {
-                    current: this.currentMode,
-                    suggested: suggestedMode,
-                    reason: this.getModeChangeReason(input, suggestedMode)
-                });
+             if (suggestedMode !== this.currentMode) {
+                 this.emit('mode:suggestion', {
+                     current: this.currentMode,
+                     suggested: suggestedMode,
+                     reason: this.getModeChangeReason(input, suggestedMode)
+                 });
                 
-                // Auto-switch if configured
-                if (options.autoSwitch) {
-                    await this.switchMode(suggestedMode);
-                }
-            }
-        }
+                 // Auto-switch if configured
+                 if (options.autoSwitch) {
+                     await this.switchMode(suggestedMode);
+                 }
+             }
+         }
         
         // Process based on current mode
         const startTime = Date.now();
@@ -587,29 +619,33 @@ class InteractionModeManager extends EventEmitter {
     
     /**
      * Process in direct mode
+     * @param {string} input
+     * @param {any} options
      * @private
-     */
-    async processDirectMode(input, options) {
-        const systemPrompt = this.getActiveSystemPrompt();
+      */
+     async processDirectMode(input, options) {
+         const systemPrompt = this.getActiveSystemPrompt();
         
-        return {
-            type: 'direct',
-            response: `[Direct Mode] Processing: ${input}`,
-            systemPrompt,
-            persona: this.activePersona
-        };
-    }
+         return {
+             type: 'direct',
+             response: `[Direct Mode] Processing: ${input}`,
+             systemPrompt,
+             persona: this.activePersona
+         };
+     }
     
     /**
      * Process in agent mode
+     * @param {string} input
+     * @param {any} options
      * @private
-     */
-    async processAgentMode(input, options) {
-        this.emit('agents:process', {
-            input,
-            options,
-            context: this.conversationContext
-        });
+      */
+     async processAgentMode(input, options) {
+         this.emit('agents:process', {
+             input,
+             options,
+             context: this.conversationContext
+         });
         
         return {
             type: 'agent',
@@ -620,11 +656,13 @@ class InteractionModeManager extends EventEmitter {
     
     /**
      * Process in hybrid mode
+     * @param {string} input
+     * @param {any} options
      * @private
-     */
-    async processHybridMode(input, options) {
-        // Determine if agents are needed
-        const complexity = this.assessComplexity(input);
+      */
+     async processHybridMode(input, options) {
+         // Determine if agents are needed
+         const complexity = this.assessComplexity(input);
         
         if (complexity > 0.7) {
             // Use agents for complex tasks
@@ -637,14 +675,15 @@ class InteractionModeManager extends EventEmitter {
     
     /**
      * Assess input complexity
+     * @param {string} input
      * @private
-     */
-    assessComplexity(input) {
-        let score = 0;
+      */
+     assessComplexity(input) {
+         let score = 0;
         
-        // Length factor
-        const words = input.split(/\s+/).length;
-        score += Math.min(words / 100, 0.3);
+         // Length factor
+         const words = input.split(/\s+/).length;
+         score += Math.min(words / 100, 0.3);
         
         // Technical terms
         const technicalTerms = /\b(api|database|function|class|module|deploy|debug)\b/gi;
@@ -682,15 +721,16 @@ class InteractionModeManager extends EventEmitter {
     
     /**
      * Process template variables in prompt
+     * @param {string} prompt
      * @private
-     */
-    processTemplateVariables(prompt) {
-        let processed = prompt;
+      */
+     processTemplateVariables(prompt) {
+         let processed = prompt;
         
-        for (const [key, value] of this.templateVariables) {
-            const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
-            processed = processed.replace(regex, value);
-        }
+         for (const [key, value] of this.templateVariables) {
+             const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+             processed = processed.replace(regex, String(value));
+         }
         
         // Process conditional instructions
         processed = this.processConditionalInstructions(processed);
@@ -700,35 +740,37 @@ class InteractionModeManager extends EventEmitter {
     
     /**
      * Process conditional instructions
+     * @param {string} prompt
      * @private
-     */
-    processConditionalInstructions(prompt) {
-        // Process IF blocks
-        const ifRegex = /\{\{IF\s+(.+?)\}\}(.*?)\{\{ENDIF\}\}/gs;
+      */
+     processConditionalInstructions(prompt) {
+         // Process IF blocks
+         const ifRegex = /\{\{IF\s+(.+?)\}\}(.*?)\{\{ENDIF\}\}/gs;
         
-        return prompt.replace(ifRegex, (match, condition, content) => {
-            if (this.evaluateCondition(condition)) {
-                return content;
-            }
-            return '';
-        });
-    }
+         return prompt.replace(ifRegex, (/** @type {any} */ match, /** @type {any} */ condition, /** @type {any} */ content) => {
+             if (this.evaluateCondition(condition)) {
+                 return content;
+             }
+             return '';
+         });
+     }
     
     /**
      * Evaluate condition
+     * @param {any} condition
      * @private
-     */
-    evaluateCondition(condition) {
-        // Simple condition evaluation
-        // In production, use a proper expression parser
-        try {
-            const context = Object.fromEntries(this.templateVariables);
-            const fn = new Function(...Object.keys(context), `return ${condition}`);
-            return fn(...Object.values(context));
-        } catch {
-            return false;
-        }
-    }
+      */
+     evaluateCondition(condition) {
+         // Simple condition evaluation
+         // In production, use a proper expression parser
+         try {
+             const context = Object.fromEntries(this.templateVariables);
+             const fn = new Function(...Object.keys(context), `return ${condition}`);
+             return fn(...Object.values(context));
+         } catch {
+             return false;
+         }
+     }
     
     /**
      * Add to conversation context
@@ -777,44 +819,49 @@ class InteractionModeManager extends EventEmitter {
     
     /**
      * Get mode change reason
+     * @param {string} input
+     * @param {string} suggestedMode
      * @private
-     */
-    getModeChangeReason(input, suggestedMode) {
-        if (suggestedMode === INTERACTION_MODE.AGENT_ENABLED) {
-            return 'Complex task detected requiring agent capabilities';
-        } else if (suggestedMode === INTERACTION_MODE.DIRECT) {
-            return 'Simple query detected, direct response is sufficient';
-        } else {
-            return 'Mixed complexity detected, hybrid approach recommended';
-        }
-    }
+      */
+     getModeChangeReason(input, suggestedMode) {
+         if (suggestedMode === INTERACTION_MODE.AGENT_ENABLED) {
+             return 'Complex task detected requiring agent capabilities';
+         } else if (suggestedMode === INTERACTION_MODE.DIRECT) {
+             return 'Simple query detected, direct response is sufficient';
+         } else {
+             return 'Mixed complexity detected, hybrid approach recommended';
+         }
+     }
     
     /**
      * Update average response time
+     * @param {number} duration
      * @private
-     */
-    updateAverageResponseTime(duration) {
-        const total = this.metrics.averageResponseTime * (this.metrics.totalInteractions - 1);
-        this.metrics.averageResponseTime = (total + duration) / this.metrics.totalInteractions;
-    }
+      */
+     updateAverageResponseTime(duration) {
+         const total = this.metrics.averageResponseTime * (this.metrics.totalInteractions - 1);
+         this.metrics.averageResponseTime = (total + duration) / this.metrics.totalInteractions;
+     }
     
     /**
      * Persist context (placeholder)
+     * @param {any} context
      * @private
-     */
-    async persistContext(context) {
-        // In production, save to database or file system
-        this.emit('context:persist', context);
-    }
+      */
+     async persistContext(context) {
+         // In production, save to database or file system
+         this.emit('context:persist', context);
+     }
     
     /**
      * Persist persona (placeholder)
+     * @param {any} persona
      * @private
-     */
-    async persistPersona(persona) {
-        // In production, save to database or file system
-        this.emit('persona:persist', persona);
-    }
+      */
+     async persistPersona(persona) {
+         // In production, save to database or file system
+         this.emit('persona:persist', persona);
+     }
     
     /**
      * Get metrics
@@ -843,27 +890,27 @@ class InteractionModeManager extends EventEmitter {
     }
     
     /**
-     * Import configuration
-     */
-    importConfiguration(config) {
-        if (config.modes) {
-            this.modeConfigurations = new Map(config.modes);
-        }
+     * @param {any} config
+      */
+     importConfiguration(config) {
+         if (config.modes) {
+             this.modeConfigurations = new Map(config.modes);
+         }
         
-        if (config.personas) {
-            this.personas = new Map(config.personas);
-        }
+         if (config.personas) {
+             this.personas = new Map(config.personas);
+         }
         
-        if (config.systemPrompts) {
-            this.systemPrompts = new Map(config.systemPrompts);
-        }
+         if (config.systemPrompts) {
+             this.systemPrompts = new Map(config.systemPrompts);
+         }
         
-        if (config.variables) {
-            this.templateVariables = new Map(config.variables);
-        }
+         if (config.variables) {
+             this.templateVariables = new Map(config.variables);
+         }
         
-        this.emit('configuration:imported', config);
-    }
+         this.emit('configuration:imported', config);
+     }
 }
 
 // Export constants

@@ -6,6 +6,11 @@ const { v4: uuidv4 } = require('uuid');
  * Connects to MCP servers and provides access to their tools and resources
  */
 class MCPClient extends EventEmitter {
+    /**
+     * @param {object} [options]
+     * @param {string} [options.name]
+     * @param {string} [options.version]
+     */
     constructor(options = {}) {
         super();
         
@@ -28,19 +33,21 @@ class MCPClient extends EventEmitter {
     
     /**
      * Connect to MCP server
-     * @param {Object} transport - Transport implementation
-     */
-    async connect(transport) {
-        if (this.isConnected) {
-            throw new Error('Client is already connected');
-        }
+     * @param {any} transport - Transport implementation
+      */
+     async connect(transport) {
+         if (this.isConnected) {
+             throw new Error('Client is already connected');
+         }
         
-        this.transport = transport;
+         this.transport = transport;
         
-        // Set up transport event handlers
-        this.transport.on('message', this.handleMessage.bind(this));
-        this.transport.on('error', this.handleError.bind(this));
-        this.transport.on('close', this.handleClose.bind(this));
+         // Set up transport event handlers
+         if (this.transport) {
+            this.transport.on('message', this.handleMessage.bind(this));
+            this.transport.on('error', this.handleError.bind(this));
+            this.transport.on('close', this.handleClose.bind(this));
+         }
         
         // Initialize connection
         const response = await this.sendRequest('initialize', {
@@ -91,113 +98,113 @@ class MCPClient extends EventEmitter {
     /**
      * Send a request to the server
      * @param {string} method - Request method
-     * @param {Object} params - Request parameters
+     * @param {object} [params] - Request parameters
      * @returns {Promise<any>} Response result
-     */
-    async sendRequest(method, params = {}) {
-        if (!this.transport && method !== 'initialize') {
-            throw new Error('Client is not connected');
-        }
+      */
+     async sendRequest(method, params = {}) {
+         if (!this.transport && method !== 'initialize') {
+             throw new Error('Client is not connected');
+         }
         
-        const id = ++this.requestId;
-        const request = {
-            jsonrpc: '2.0',
-            id,
-            method,
-            params
-        };
+         const id = ++this.requestId;
+         const request = {
+             jsonrpc: '2.0',
+             id,
+             method,
+             params
+         };
         
-        return new Promise((resolve, reject) => {
-            this.pendingRequests.set(id, { resolve, reject });
+         return new Promise((resolve, reject) => {
+             this.pendingRequests.set(id, { resolve, reject });
             
-            if (this.transport) {
-                this.transport.send(request);
-            }
+             if (this.transport) {
+                 this.transport.send(request);
+             }
             
-            // Set timeout for request
-            setTimeout(() => {
-                if (this.pendingRequests.has(id)) {
-                    this.pendingRequests.delete(id);
-                    reject(new Error(`Request timeout: ${method}`));
-                }
-            }, 30000); // 30 second timeout
-        });
-    }
+             // Set timeout for request
+             setTimeout(() => {
+                 if (this.pendingRequests.has(id)) {
+                     this.pendingRequests.delete(id);
+                     reject(new Error(`Request timeout: ${method}`));
+                 }
+             }, 30000); // 30 second timeout
+         });
+     }
     
     /**
      * Send a notification to the server
      * @param {string} method - Notification method
-     * @param {Object} params - Notification parameters
-     */
-    sendNotification(method, params = {}) {
-        if (!this.transport) {
-            throw new Error('Client is not connected');
-        }
+     * @param {object} [params] - Notification parameters
+      */
+     sendNotification(method, params = {}) {
+         if (!this.transport) {
+             throw new Error('Client is not connected');
+         }
         
-        const notification = {
-            jsonrpc: '2.0',
-            method,
-            params
-        };
+         const notification = {
+             jsonrpc: '2.0',
+             method,
+             params
+         };
         
-        this.transport.send(notification);
-    }
+         this.transport.send(notification);
+     }
     
     /**
      * Handle incoming message from transport
-     * @param {Object} message - Incoming message
-     */
-    handleMessage(message) {
-        if (message.id !== undefined) {
-            // This is a response to a request
-            const pending = this.pendingRequests.get(message.id);
-            if (pending) {
-                this.pendingRequests.delete(message.id);
+     * @param {any} message - Incoming message
+      */
+     handleMessage(message) {
+         if (message.id !== undefined) {
+             // This is a response to a request
+             const pending = this.pendingRequests.get(message.id);
+             if (pending) {
+                 this.pendingRequests.delete(message.id);
                 
-                if (message.error) {
-                    pending.reject(new Error(message.error.message));
-                } else {
-                    pending.resolve(message.result);
-                }
-            }
-        } else if (message.method) {
-            // This is a notification from the server
-            this.handleNotification(message.method, message.params);
-        }
-    }
+                 if (message.error) {
+                     pending.reject(new Error(message.error.message));
+                 } else {
+                     pending.resolve(message.result);
+                 }
+             }
+         } else if (message.method) {
+             // This is a notification from the server
+             this.handleNotification(message.method, message.params);
+         }
+     }
     
     /**
      * Handle notification from server
      * @param {string} method - Notification method
-     * @param {Object} params - Notification parameters
-     */
-    handleNotification(method, params) {
-        switch (method) {
-            case 'notifications/resources/updated':
-                this.emit('resourceUpdated', params.uri);
-                break;
-            case 'notifications/tools/list/changed':
-                this.refreshTools();
-                break;
-            case 'notifications/resources/list/changed':
-                this.refreshResources();
-                break;
-            case 'notifications/prompts/list/changed':
-                this.refreshPrompts();
-                break;
-            case 'notifications/message':
-                this.emit('message', params);
-                break;
-            case 'notifications/progress':
-                this.emit('progress', params);
-                break;
-            case 'notifications/cancelled':
-                this.emit('cancelled', params);
-                break;
-            default:
-                this.emit('notification', { method, params });
-        }
-    }
+     * @param {any} params - Notification parameters
+      */
+     handleNotification(method, params) {
+         switch (method) {
+             case 'notifications/resources/updated':
+                 this.emit('resourceUpdated', params.uri);
+                 break;
+             case 'notifications/tools/list/changed':
+                 this.refreshTools();
+                 break;
+             case 'notifications/resources/list/changed':
+                 this.refreshResources();
+                 break;
+             case 'notifications/prompts/list/changed':
+                 this.refreshPrompts();
+                 break;
+             case 'notifications/message':
+                 this.emit('message', params);
+                 break;
+             case 'notifications/progress':
+                 this.emit('progress', params);
+                 break;
+             case 'notifications/cancelled':
+                 this.emit('cancelled', params);
+                 break;
+             default:
+                 this.emit('notification', { method, params });
+         }
+     }
     
     /**
      * Handle transport error
@@ -289,32 +296,32 @@ class MCPClient extends EventEmitter {
     /**
      * Call a tool on the server
      * @param {string} name - Tool name
-     * @param {Object} args - Tool arguments
-     * @returns {Promise<Object>} Tool result
-     */
-    async callTool(name, args = {}) {
-        if (!this.tools.has(name)) {
-            throw new Error(`Tool not found: ${name}`);
-        }
+     * @param {object} args - Tool arguments
+     * @returns {Promise<object>} Tool result
+      */
+     async callTool(name, args = {}) {
+         if (!this.tools.has(name)) {
+             throw new Error(`Tool not found: ${name}`);
+         }
         
-        return this.sendRequest('tools/call', {
-            name,
-            arguments: args
-        });
-    }
+         return this.sendRequest('tools/call', {
+             name,
+             arguments: args
+         });
+     }
     
     /**
      * Read a resource from the server
      * @param {string} uri - Resource URI
-     * @returns {Promise<Object>} Resource content
-     */
-    async readResource(uri) {
-        if (!this.resources.has(uri)) {
-            throw new Error(`Resource not found: ${uri}`);
-        }
+     * @returns {Promise<object>} Resource content
+      */
+     async readResource(uri) {
+         if (!this.resources.has(uri)) {
+             throw new Error(`Resource not found: ${uri}`);
+         }
         
-        return this.sendRequest('resources/read', { uri });
-    }
+         return this.sendRequest('resources/read', { uri });
+     }
     
     /**
      * Subscribe to resource updates
@@ -337,28 +344,28 @@ class MCPClient extends EventEmitter {
     /**
      * Get a prompt from the server
      * @param {string} name - Prompt name
-     * @param {Object} args - Prompt arguments
-     * @returns {Promise<Object>} Prompt result
-     */
-    async getPrompt(name, args = {}) {
-        if (!this.prompts.has(name)) {
-            throw new Error(`Prompt not found: ${name}`);
-        }
+     * @param {object} args - Prompt arguments
+     * @returns {Promise<object>} Prompt result
+      */
+     async getPrompt(name, args = {}) {
+         if (!this.prompts.has(name)) {
+             throw new Error(`Prompt not found: ${name}`);
+         }
         
-        return this.sendRequest('prompts/get', {
-            name,
-            arguments: args
-        });
-    }
+         return this.sendRequest('prompts/get', {
+             name,
+             arguments: args
+         });
+     }
     
     /**
      * Request completion from the server
-     * @param {Object} params - Completion parameters
-     * @returns {Promise<Object>} Completion result
-     */
-    async complete(params) {
-        return this.sendRequest('completion/complete', params);
-    }
+     * @param {object} params - Completion parameters
+     * @returns {Promise<object>} Completion result
+      */
+     async complete(params) {
+         return this.sendRequest('completion/complete', params);
+     }
     
     /**
      * Set logging level
@@ -370,27 +377,27 @@ class MCPClient extends EventEmitter {
     
     /**
      * Get available tools
-     * @returns {Array} List of tools
-     */
-    getTools() {
-        return Array.from(this.tools.values());
-    }
+     * @returns {any[]} List of tools
+      */
+     getTools() {
+         return Array.from(this.tools.values());
+     }
     
     /**
      * Get available resources
-     * @returns {Array} List of resources
-     */
-    getResources() {
-        return Array.from(this.resources.values());
-    }
+     * @returns {any[]} List of resources
+      */
+     getResources() {
+         return Array.from(this.resources.values());
+     }
     
     /**
      * Get available prompts
-     * @returns {Array} List of prompts
-     */
-    getPrompts() {
-        return Array.from(this.prompts.values());
-    }
+     * @returns {any[]} List of prompts
+      */
+     getPrompts() {
+         return Array.from(this.prompts.values());
+     }
     
     /**
      * Check if a tool is available

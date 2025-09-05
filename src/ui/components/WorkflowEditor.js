@@ -3,6 +3,10 @@
  * 提供拖拽式的工作流构建界面
  */
 class WorkflowEditor {
+    /**
+     * @param {HTMLElement} container
+     * @param {any} workflowManager
+     */
     constructor(container, workflowManager) {
         this.container = container;
         this.workflowManager = workflowManager;
@@ -346,6 +350,7 @@ class WorkflowEditor {
      */
     createNodeTemplates() {
         const categoriesContainer = this.container.querySelector('.node-categories');
+        if (!categoriesContainer) return;
         
         for (const [type, config] of Object.entries(this.nodeTemplates)) {
             const template = document.createElement('div');
@@ -359,8 +364,10 @@ class WorkflowEditor {
             
             // 拖拽事件
             template.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData('nodeType', type);
-                e.dataTransfer.effectAllowed = 'copy';
+                if (e.dataTransfer) {
+                    e.dataTransfer.setData('nodeType', type);
+                    e.dataTransfer.effectAllowed = 'copy';
+                }
             });
             
             categoriesContainer.appendChild(template);
@@ -371,7 +378,7 @@ class WorkflowEditor {
      * 设置画布
      */
     setupCanvas() {
-        this.canvas = document.getElementById('workflow-canvas');
+        this.canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('workflow-canvas'));
         this.ctx = this.canvas.getContext('2d');
         
         // 设置画布大小
@@ -385,9 +392,12 @@ class WorkflowEditor {
      * 调整画布大小
      */
     resizeCanvas() {
+        if (!this.canvas) return;
         const container = this.canvas.parentElement;
-        this.canvas.width = container.clientWidth;
-        this.canvas.height = container.clientHeight;
+        if (container) {
+            this.canvas.width = container.clientWidth;
+            this.canvas.height = container.clientHeight;
+        }
         this.render();
     }
     
@@ -397,9 +407,10 @@ class WorkflowEditor {
     bindEvents() {
         // 工具栏按钮
         this.container.querySelectorAll('.toolbar-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => this.handleToolbarClick(e));
+            btn.addEventListener('click', (e) => this.handleToolbarClick(/** @type {MouseEvent} */ (e)));
         });
         
+        if (!this.canvas) return;
         // 画布事件
         this.canvas.addEventListener('mousedown', (e) => this.handleCanvasMouseDown(e));
         this.canvas.addEventListener('mousemove', (e) => this.handleCanvasMouseMove(e));
@@ -410,10 +421,12 @@ class WorkflowEditor {
         // 画布拖放
         this.canvas.addEventListener('dragover', (e) => {
             e.preventDefault();
-            e.dataTransfer.dropEffect = 'copy';
+            if (e.dataTransfer) {
+                e.dataTransfer.dropEffect = 'copy';
+            }
         });
         
-        this.canvas.addEventListener('drop', (e) => this.handleCanvasDrop(e));
+        this.canvas.addEventListener('drop', (e) => this.handleCanvasDrop(/** @type {DragEvent} */ (e)));
         
         // 键盘事件
         document.addEventListener('keydown', (e) => this.handleKeyDown(e));
@@ -422,8 +435,11 @@ class WorkflowEditor {
     /**
      * 处理工具栏点击
      */
+    /**
+     * @param {MouseEvent} e
+     */
     handleToolbarClick(e) {
-        const btn = e.currentTarget;
+        const btn = /** @type {HTMLButtonElement} */ (e.currentTarget);
         const action = btn.dataset.action;
         const mode = btn.dataset.mode;
         
@@ -444,67 +460,73 @@ class WorkflowEditor {
     /**
      * 设置编辑模式
      */
+    /**
+     * @param {string} mode
+     */
     setMode(mode) {
         this.mode = mode;
         
         // 更新鼠标样式
-        switch (mode) {
-            case 'select':
-                this.canvas.style.cursor = 'default';
-                break;
-            case 'connect':
-                this.canvas.style.cursor = 'crosshair';
-                break;
-            case 'pan':
-                this.canvas.style.cursor = 'grab';
-                break;
+        if (this.canvas) {
+            switch (mode) {
+                case 'select':
+                    this.canvas.style.cursor = 'default';
+                    break;
+                case 'connect':
+                    this.canvas.style.cursor = 'crosshair';
+                    break;
+                case 'pan':
+                    this.canvas.style.cursor = 'grab';
+                    break;
+            }
         }
         
         this.showStatus(`切换到${mode === 'select' ? '选择' : mode === 'connect' ? '连接' : '平移'}模式`);
     }
     
     /**
-     * 执行工具栏动作
-     */
-    executeAction(action) {
-        switch (action) {
-            case 'new':
-                this.createNewWorkflow();
-                break;
-            case 'save':
-                this.saveWorkflow();
-                break;
-            case 'load':
-                this.loadWorkflow();
-                break;
-            case 'export':
-                this.exportWorkflow();
-                break;
-            case 'validate':
-                this.validateWorkflow();
-                break;
-            case 'run':
-                this.runWorkflow();
-                break;
-            case 'zoom-in':
-                this.zoom(1.2);
-                break;
-            case 'zoom-out':
-                this.zoom(0.8);
-                break;
-            case 'zoom-fit':
-                this.zoomToFit();
-                break;
-        }
-    }
+     * @param {string | null} action
+      */
+     executeAction(action) {
+         switch (action) {
+             case 'new':
+                 this.createNewWorkflow();
+                 break;
+             case 'save':
+                 this.saveWorkflow();
+                 break;
+             case 'load':
+                 this.loadWorkflow();
+                 break;
+             case 'export':
+                 this.exportWorkflow();
+                 break;
+             case 'validate':
+                 this.validateWorkflow();
+                 break;
+             case 'run':
+                 this.runWorkflow();
+                 break;
+             case 'zoom-in':
+                 this.zoom(1.2);
+                 break;
+             case 'zoom-out':
+                 this.zoom(0.8);
+                 break;
+             case 'zoom-fit':
+                 this.zoomToFit();
+                 break;
+         }
+     }
     
     /**
-     * 处理画布鼠标按下
-     */
-    handleCanvasMouseDown(e) {
-        const rect = this.canvas.getBoundingClientRect();
-        const x = (e.clientX - rect.left - this.offset.x) / this.scale;
-        const y = (e.clientY - rect.top - this.offset.y) / this.scale;
+     * @param {MouseEvent} e
+      */
+     handleCanvasMouseDown(e) {
+        if (!this.canvas) return;
+         const rect = this.canvas.getBoundingClientRect();
+         const x = (e.clientX - rect.left - this.offset.x) / this.scale;
+         const y = (e.clientY - rect.top - this.offset.y) / this.scale;
         
         this.mousePos = { x, y };
         
@@ -536,12 +558,13 @@ class WorkflowEditor {
     }
     
     /**
-     * 处理画布鼠标移动
-     */
-    handleCanvasMouseMove(e) {
-        const rect = this.canvas.getBoundingClientRect();
-        const x = (e.clientX - rect.left - this.offset.x) / this.scale;
-        const y = (e.clientY - rect.top - this.offset.y) / this.scale;
+     * @param {MouseEvent} e
+      */
+     handleCanvasMouseMove(e) {
+        if (!this.canvas) return;
+         const rect = this.canvas.getBoundingClientRect();
+         const x = (e.clientX - rect.left - this.offset.x) / this.scale;
+         const y = (e.clientY - rect.top - this.offset.y) / this.scale;
         
         if (this.draggedNode) {
             // 拖动节点
@@ -575,12 +598,13 @@ class WorkflowEditor {
     }
     
     /**
-     * 处理画布鼠标释放
-     */
-    handleCanvasMouseUp(e) {
-        const rect = this.canvas.getBoundingClientRect();
-        const x = (e.clientX - rect.left - this.offset.x) / this.scale;
-        const y = (e.clientY - rect.top - this.offset.y) / this.scale;
+     * @param {MouseEvent} e
+      */
+     handleCanvasMouseUp(e) {
+        if (!this.canvas) return;
+         const rect = this.canvas.getBoundingClientRect();
+         const x = (e.clientX - rect.left - this.offset.x) / this.scale;
+         const y = (e.clientY - rect.top - this.offset.y) / this.scale;
         
         if (this.connectionStart) {
             // 完成连接
@@ -595,39 +619,43 @@ class WorkflowEditor {
                     );
                     this.showStatus('连接创建成功');
                 } catch (error) {
-                    this.showStatus(error.message, 'error');
+                   const errorMessage = error instanceof Error ? error.message : String(error);
+                   this.showStatus(errorMessage, 'error');
                 }
             }
             this.connectionStart = null;
             this.render();
         }
-        
+       
         this.draggedNode = null;
-        
+       
         if (this.mode === 'pan') {
-            this.canvas.style.cursor = 'grab';
+           if (this.canvas) {
+               this.canvas.style.cursor = 'grab';
+           }
         }
     }
     
     /**
-     * 处理画布滚轮
-     */
-    handleCanvasWheel(e) {
-        e.preventDefault();
+     * @param {WheelEvent} e
+      */
+     handleCanvasWheel(e) {
+         e.preventDefault();
         
-        const delta = e.deltaY > 0 ? 0.9 : 1.1;
-        this.zoom(delta, e.clientX, e.clientY);
-    }
+         const delta = e.deltaY > 0 ? 0.9 : 1.1;
+         this.zoom(delta, e.clientX, e.clientY);
+     }
     
     /**
-     * 处理画布右键菜单
-     */
-    handleCanvasContextMenu(e) {
-        e.preventDefault();
+     * @param {MouseEvent} e
+      */
+     handleCanvasContextMenu(e) {
+         e.preventDefault();
         
-        const rect = this.canvas.getBoundingClientRect();
-        const x = (e.clientX - rect.left - this.offset.x) / this.scale;
-        const y = (e.clientY - rect.top - this.offset.y) / this.scale;
+        if (!this.canvas) return;
+         const rect = this.canvas.getBoundingClientRect();
+         const x = (e.clientX - rect.left - this.offset.x) / this.scale;
+         const y = (e.clientY - rect.top - this.offset.y) / this.scale;
         
         const node = this.getNodeAt(x, y);
         if (node) {
@@ -641,17 +669,19 @@ class WorkflowEditor {
     }
     
     /**
-     * 处理画布拖放
-     */
-    handleCanvasDrop(e) {
-        e.preventDefault();
+     * @param {DragEvent} e
+      */
+     handleCanvasDrop(e) {
+         e.preventDefault();
         
-        const nodeType = e.dataTransfer.getData('nodeType');
-        if (!nodeType) return;
+        if (!e.dataTransfer) return;
+         const nodeType = e.dataTransfer.getData('nodeType');
+         if (!nodeType) return;
         
-        const rect = this.canvas.getBoundingClientRect();
-        const x = (e.clientX - rect.left - this.offset.x) / this.scale;
-        const y = (e.clientY - rect.top - this.offset.y) / this.scale;
+        if (!this.canvas) return;
+         const rect = this.canvas.getBoundingClientRect();
+         const x = (e.clientX - rect.left - this.offset.x) / this.scale;
+         const y = (e.clientY - rect.top - this.offset.y) / this.scale;
         
         try {
             const node = this.workflowManager.addNode(nodeType, { x, y });
@@ -659,77 +689,80 @@ class WorkflowEditor {
             this.render();
             this.showStatus(`添加了 ${this.nodeTemplates[nodeType].label}`);
         } catch (error) {
-            this.showStatus(error.message, 'error');
+           const errorMessage = error instanceof Error ? error.message : String(error);
+           this.showStatus(errorMessage, 'error');
         }
     }
     
     /**
-     * 处理键盘事件
-     */
-    handleKeyDown(e) {
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-            return;
-        }
+     * @param {KeyboardEvent} e
+      */
+     handleKeyDown(e) {
+         if (e.target instanceof HTMLElement && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+             return;
+         }
         
-        if (e.key === 'Delete' || e.key === 'Backspace') {
-            if (this.selectedNode) {
-                this.workflowManager.removeNode(this.selectedNode.id);
-                this.clearSelection();
-                this.render();
-                this.showStatus('节点已删除');
-            } else if (this.selectedConnection) {
-                // TODO: 实现删除连接
-                this.showStatus('连接删除功能待实现');
-            }
-        }
-    }
+         if (e.key === 'Delete' || e.key === 'Backspace') {
+             if (this.selectedNode) {
+                 this.workflowManager.removeNode(this.selectedNode.id);
+                 this.clearSelection();
+                 this.render();
+                 this.showStatus('节点已删除');
+             } else if (this.selectedConnection) {
+                 // TODO: 实现删除连接
+                 this.showStatus('连接删除功能待实现');
+             }
+         }
+     }
     
     /**
      * 渲染画布
-     */
-    render() {
-        const workflow = this.workflowManager.currentWorkflow;
-        if (!workflow) return;
+      */
+     render() {
+        if (!this.canvas || !this.ctx) return;
+         const workflow = this.workflowManager.currentWorkflow;
+         if (!workflow) return;
         
-        // 清空画布
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+         // 清空画布
+         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // 保存状态
-        this.ctx.save();
+         // 保存状态
+         this.ctx.save();
         
-        // 应用变换
-        this.ctx.translate(this.offset.x, this.offset.y);
-        this.ctx.scale(this.scale, this.scale);
+         // 应用变换
+         this.ctx.translate(this.offset.x, this.offset.y);
+         this.ctx.scale(this.scale, this.scale);
         
-        // 绘制网格
-        this.drawGrid();
+         // 绘制网格
+         this.drawGrid();
         
-        // 绘制连接
-        workflow.connections.forEach(conn => {
-            this.drawConnection(conn);
-        });
+         // 绘制连接
+         workflow.connections.forEach((/** @type {any} */ conn) => {
+             this.drawConnection(conn);
+         });
         
-        // 绘制节点
-        workflow.nodes.forEach(node => {
-            this.drawNode(node);
-        });
+         // 绘制节点
+         workflow.nodes.forEach((/** @type {any} */ node) => {
+             this.drawNode(node);
+         });
         
-        // 恢复状态
-        this.ctx.restore();
+         // 恢复状态
+         this.ctx.restore();
         
-        // 更新状态栏
-        this.updateStatusBar();
-    }
+         // 更新状态栏
+         this.updateStatusBar();
+     }
     
     /**
      * 绘制网格
-     */
-    drawGrid() {
-        const gridSize = 20;
-        const width = this.canvas.width / this.scale;
-        const height = this.canvas.height / this.scale;
-        const offsetX = -this.offset.x / this.scale;
-        const offsetY = -this.offset.y / this.scale;
+      */
+     drawGrid() {
+        if (!this.canvas || !this.ctx) return;
+         const gridSize = 20;
+         const width = this.canvas.width / this.scale;
+         const height = this.canvas.height / this.scale;
+         const offsetX = -this.offset.x / this.scale;
+         const offsetY = -this.offset.y / this.scale;
         
         this.ctx.strokeStyle = 'rgba(128, 128, 128, 0.1)';
         this.ctx.lineWidth = 1;
@@ -752,14 +785,15 @@ class WorkflowEditor {
     }
     
     /**
-     * 绘制节点
-     */
-    drawNode(node) {
-        const config = this.nodeTemplates[node.type];
-        const x = node.position.x;
-        const y = node.position.y;
-        const width = 150;
-        const height = 60;
+     * @param {any} node
+      */
+     drawNode(node) {
+        if (!this.ctx) return;
+         const config = this.nodeTemplates[node.type];
+         const x = node.position.x;
+         const y = node.position.y;
+         const width = 150;
+         const height = 60;
         
         // 节点背景
         this.ctx.fillStyle = this.selectedNode === node ? 
@@ -789,35 +823,41 @@ class WorkflowEditor {
     }
     
     /**
-     * 绘制端口
-     */
-    drawPorts(node, x, y, width, height) {
-        const config = this.nodeTemplates[node.type];
+     * @param {any} node
+     * @param {number} x
+     * @param {number} y
+     * @param {number} width
+     * @param {number} height
+      */
+     drawPorts(node, x, y, width, height) {
+        if (!this.ctx) return;
+         const config = this.nodeTemplates[node.type];
         
-        // 输入端口
-        if (config.inputs !== 0) {
-            this.ctx.fillStyle = '#4CAF50';
-            this.ctx.beginPath();
-            this.ctx.arc(x - width/2, y, 5, 0, 2 * Math.PI);
-            this.ctx.fill();
-        }
+         // 输入端口
+         if (config.inputs !== 0) {
+             this.ctx.fillStyle = '#4CAF50';
+             this.ctx.beginPath();
+             this.ctx.arc(x - width/2, y, 5, 0, 2 * Math.PI);
+             this.ctx.fill();
+         }
         
-        // 输出端口
-        if (config.outputs !== 0) {
-            this.ctx.fillStyle = '#2196F3';
-            this.ctx.beginPath();
-            this.ctx.arc(x + width/2, y, 5, 0, 2 * Math.PI);
-            this.ctx.fill();
-        }
-    }
+         // 输出端口
+         if (config.outputs !== 0) {
+             this.ctx.fillStyle = '#2196F3';
+             this.ctx.beginPath();
+             this.ctx.arc(x + width/2, y, 5, 0, 2 * Math.PI);
+             this.ctx.fill();
+         }
+     }
     
     /**
-     * 绘制连接
-     */
-    drawConnection(connection) {
-        const workflow = this.workflowManager.currentWorkflow;
-        const sourceNode = workflow.nodes.find(n => n.id === connection.source);
-        const targetNode = workflow.nodes.find(n => n.id === connection.target);
+     * @param {any} connection
+      */
+     drawConnection(connection) {
+        if (!this.ctx) return;
+         const workflow = this.workflowManager.currentWorkflow;
+         const sourceNode = workflow.nodes.find((/** @type {{ id: any; }} */ n) => n.id === connection.source);
+         const targetNode = workflow.nodes.find((/** @type {{ id: any; }} */ n) => n.id === connection.target);
         
         if (!sourceNode || !targetNode) return;
         
@@ -847,28 +887,36 @@ class WorkflowEditor {
     }
     
     /**
-     * 绘制连接预览
-     */
-    drawConnectionPreview(x1, y1, x2, y2) {
-        this.ctx.strokeStyle = 'rgba(100, 200, 255, 0.5)';
-        this.ctx.lineWidth = 2;
-        this.ctx.setLineDash([5, 5]);
+     * @param {number} x1
+     * @param {number} y1
+     * @param {number} x2
+     * @param {number} y2
+      */
+     drawConnectionPreview(x1, y1, x2, y2) {
+        if (!this.ctx) return;
+         this.ctx.strokeStyle = 'rgba(100, 200, 255, 0.5)';
+         this.ctx.lineWidth = 2;
+         this.ctx.setLineDash([5, 5]);
         
-        this.ctx.beginPath();
-        this.ctx.moveTo(x1, y1);
-        this.ctx.lineTo(x2, y2);
-        this.ctx.stroke();
+         this.ctx.beginPath();
+         this.ctx.moveTo(x1, y1);
+         this.ctx.lineTo(x2, y2);
+         this.ctx.stroke();
         
-        this.ctx.setLineDash([]);
-    }
+         this.ctx.setLineDash([]);
+     }
     
     /**
-     * 绘制箭头
-     */
-    drawArrow(x1, y1, x2, y2) {
-        const angle = Math.atan2(y2 - y1, x2 - x1);
-        const arrowLength = 10;
-        const arrowAngle = Math.PI / 6;
+     * @param {number} x1
+     * @param {number} y1
+     * @param {number} x2
+     * @param {number} y2
+      */
+     drawArrow(x1, y1, x2, y2) {
+        if (!this.ctx) return;
+         const angle = Math.atan2(y2 - y1, x2 - x1);
+         const arrowLength = 10;
+         const arrowAngle = Math.PI / 6;
         
         this.ctx.beginPath();
         this.ctx.moveTo(x2, y2);
@@ -885,28 +933,34 @@ class WorkflowEditor {
     }
     
     /**
-     * 绘制圆角矩形
-     */
-    roundRect(x, y, width, height, radius) {
-        this.ctx.beginPath();
-        this.ctx.moveTo(x + radius, y);
-        this.ctx.lineTo(x + width - radius, y);
-        this.ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-        this.ctx.lineTo(x + width, y + height - radius);
-        this.ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-        this.ctx.lineTo(x + radius, y + height);
-        this.ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-        this.ctx.lineTo(x, y + radius);
-        this.ctx.quadraticCurveTo(x, y, x + radius, y);
-        this.ctx.closePath();
-    }
+     * @param {number} x
+     * @param {number} y
+     * @param {number} width
+     * @param {number} height
+     * @param {number} radius
+      */
+     roundRect(x, y, width, height, radius) {
+        if (!this.ctx) return;
+         this.ctx.beginPath();
+         this.ctx.moveTo(x + radius, y);
+         this.ctx.lineTo(x + width - radius, y);
+         this.ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+         this.ctx.lineTo(x + width, y + height - radius);
+         this.ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+         this.ctx.lineTo(x + radius, y + height);
+         this.ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+         this.ctx.lineTo(x, y + radius);
+         this.ctx.quadraticCurveTo(x, y, x + radius, y);
+         this.ctx.closePath();
+     }
     
     /**
-     * 获取指定位置的节点
-     */
-    getNodeAt(x, y) {
-        const workflow = this.workflowManager.currentWorkflow;
-        if (!workflow) return null;
+     * @param {number} x
+     * @param {number} y
+      */
+     getNodeAt(x, y) {
+         const workflow = this.workflowManager.currentWorkflow;
+         if (!workflow) return null;
         
         // 从后向前遍历（上层节点优先）
         for (let i = workflow.nodes.length - 1; i >= 0; i--) {
@@ -926,34 +980,35 @@ class WorkflowEditor {
     }
     
     /**
-     * 获取指定位置的连接
-     */
-    getConnectionAt(x, y) {
-        const workflow = this.workflowManager.currentWorkflow;
-        if (!workflow) return null;
+     * @param {number} x
+     * @param {number} y
+      */
+     getConnectionAt(x, y) {
+         const workflow = this.workflowManager.currentWorkflow;
+         if (!workflow) return null;
         
         // TODO: 实现连接点击检测（需要计算贝塞尔曲线距离）
         return null;
     }
     
     /**
-     * 选择节点
-     */
-    selectNode(node) {
-        this.selectedNode = node;
-        this.selectedConnection = null;
-        this.updatePropertiesPanel(node);
-        this.render();
-    }
+     * @param {any} node
+      */
+     selectNode(node) {
+         this.selectedNode = node;
+         this.selectedConnection = null;
+         this.updatePropertiesPanel(node);
+         this.render();
+     }
     
     /**
-     * 选择连接
-     */
-    selectConnection(connection) {
-        this.selectedNode = null;
-        this.selectedConnection = connection;
-        this.render();
-    }
+     * @param {any} connection
+      */
+     selectConnection(connection) {
+         this.selectedNode = null;
+         this.selectedConnection = connection;
+         this.render();
+     }
     
     /**
      * 清除选择
@@ -966,15 +1021,16 @@ class WorkflowEditor {
     }
     
     /**
-     * 更新属性面板
-     */
-    updatePropertiesPanel(node) {
-        const content = this.container.querySelector('.properties-content');
-        
-        if (!node) {
-            content.innerHTML = '<p class="placeholder">选择一个节点查看属性</p>';
-            return;
-        }
+     * @param {any} node
+      */
+     updatePropertiesPanel(node) {
+         const content = this.container.querySelector('.properties-content');
+        if (!content) return;
+
+         if (!node) {
+             content.innerHTML = '<p class="placeholder">选择一个节点查看属性</p>';
+             return;
+         }
         
         const config = this.nodeTemplates[node.type];
         let html = `<h4>${config.label}</h4>`;
@@ -1005,43 +1061,51 @@ class WorkflowEditor {
         }
         
         content.innerHTML = html;
-        
+       
         // 绑定属性更改事件
         content.querySelectorAll('.property-input').forEach(input => {
             input.addEventListener('change', (e) => {
-                const property = e.target.dataset.property;
-                let value = e.target.value;
-                
+               const target = /** @type {HTMLInputElement} */ (e.target);
+                const property = target.dataset.property;
+                let value = target.value;
+               
                 // 解析特殊类型
-                const def = config.properties[property];
-                if (def.type === 'number') {
-                    value = parseFloat(value) || 0;
-                } else if (def.type === 'array' || def.type === 'object') {
-                    try {
-                        value = JSON.parse(value);
-                    } catch {
-                        this.showStatus('无效的JSON格式', 'error');
-                        return;
+                if (property) {
+                    const def = config.properties[property];
+                    if (def.type === 'number') {
+                        // @ts-ignore
+                        value = parseFloat(value) || 0;
+                    } else if (def.type === 'array' || def.type === 'object') {
+                        try {
+                            value = JSON.parse(value);
+                        } catch {
+                            this.showStatus('无效的JSON格式', 'error');
+                            return;
+                        }
                     }
                 }
-                
-                this.workflowManager.updateNode(node.id, {
-                    [property]: value
-                });
-                
+               
+                if (property) {
+                   this.workflowManager.updateNode(node.id, {
+                       [property]: value
+                   });
+                }
+               
                 this.showStatus('属性已更新');
             });
         });
     }
     
     /**
-     * 显示节点上下文菜单
-     */
-    showNodeContextMenu(node, x, y) {
-        const menu = document.createElement('div');
-        menu.className = 'context-menu';
-        menu.style.left = x + 'px';
-        menu.style.top = y + 'px';
+     * @param {any} node
+     * @param {number} x
+     * @param {number} y
+      */
+     showNodeContextMenu(node, x, y) {
+         const menu = document.createElement('div');
+         menu.className = 'context-menu';
+         menu.style.left = x + 'px';
+         menu.style.top = y + 'px';
         
         const items = [
             { label: '复制', action: () => this.copyNode(node) },
@@ -1069,23 +1133,27 @@ class WorkflowEditor {
     }
     
     /**
-     * 显示连接上下文菜单
-     */
-    showConnectionContextMenu(connection, x, y) {
-        // TODO: 实现连接上下文菜单
-    }
+     * @param {any} connection
+     * @param {number} x
+     * @param {number} y
+      */
+     showConnectionContextMenu(connection, x, y) {
+         // TODO: 实现连接上下文菜单
+     }
     
     /**
-     * 缩放
-     */
-    zoom(factor, centerX = null, centerY = null) {
-        const newScale = Math.max(0.1, Math.min(5, this.scale * factor));
+     * @param {number} factor
+     * @param {number | null} [centerX]
+     * @param {number | null} [centerY]
+      */
+     zoom(factor, centerX = null, centerY = null) {
+         const newScale = Math.max(0.1, Math.min(5, this.scale * factor));
         
-        if (centerX && centerY) {
-            // 以鼠标位置为中心缩放
-            const rect = this.canvas.getBoundingClientRect();
-            const x = centerX - rect.left;
-            const y = centerY - rect.top;
+         if (centerX && centerY && this.canvas) {
+             // 以鼠标位置为中心缩放
+             const rect = this.canvas.getBoundingClientRect();
+             const x = centerX - rect.left;
+             const y = centerY - rect.top;
             
             this.offset.x = x - (x - this.offset.x) * (newScale / this.scale);
             this.offset.y = y - (y - this.offset.y) * (newScale / this.scale);
@@ -1100,13 +1168,13 @@ class WorkflowEditor {
      */
     zoomToFit() {
         const workflow = this.workflowManager.currentWorkflow;
-        if (!workflow || workflow.nodes.length === 0) return;
+        if (!workflow || workflow.nodes.length === 0 || !this.canvas) return;
         
         // 计算边界
         let minX = Infinity, minY = Infinity;
         let maxX = -Infinity, maxY = -Infinity;
         
-        workflow.nodes.forEach(node => {
+        workflow.nodes.forEach((/** @type {{ position: { x: number; y: number; }; }} */ node) => {
             minX = Math.min(minX, node.position.x - 75);
             minY = Math.min(minY, node.position.y - 30);
             maxX = Math.max(maxX, node.position.x + 75);
@@ -1187,7 +1255,8 @@ class WorkflowEditor {
             
             this.showStatus('工作流已导出');
         } catch (error) {
-            this.showStatus(error.message, 'error');
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            this.showStatus(errorMessage, 'error');
         }
     }
     
@@ -1207,78 +1276,88 @@ class WorkflowEditor {
     
     /**
      * 运行工作流
-     */
-    runWorkflow() {
-        // 发送消息给扩展运行工作流
-        if (window.vscode) {
-            const vscode = window.vscode;
-            vscode.postMessage({
-                command: 'runWorkflow',
-                workflow: this.workflowManager.currentWorkflow
-            });
-        } else {
-            this.showStatus('运行功能需要在VSCode中使用');
-        }
-    }
+      */
+     runWorkflow() {
+         // 发送消息给扩展运行工作流
+        // @ts-ignore
+         if (window.vscode) {
+             // @ts-ignore
+             const vscode = window.vscode;
+             vscode.postMessage({
+                 command: 'runWorkflow',
+                 workflow: this.workflowManager.currentWorkflow
+             });
+         } else {
+             this.showStatus('运行功能需要在VSCode中使用');
+         }
+     }
     
     /**
-     * 复制节点
-     */
-    copyNode(node) {
-        // TODO: 实现节点复制
-        this.showStatus('复制功能待实现');
-    }
+     * @param {any} node
+      */
+     copyNode(node) {
+         // TODO: 实现节点复制
+         this.showStatus('复制功能待实现');
+     }
     
     /**
-     * 删除节点
-     */
-    deleteNode(node) {
-        this.workflowManager.removeNode(node.id);
-        this.clearSelection();
-        this.render();
-        this.showStatus('节点已删除');
-    }
+     * @param {any} node
+      */
+     deleteNode(node) {
+         this.workflowManager.removeNode(node.id);
+         this.clearSelection();
+         this.render();
+         this.showStatus('节点已删除');
+     }
     
     /**
-     * 显示状态消息
-     */
-    showStatus(message, type = 'info') {
-        const statusMessage = this.container.querySelector('.status-message');
-        statusMessage.textContent = message;
-        statusMessage.style.color = type === 'error' ? '#f44336' : 
-                                   type === 'success' ? '#4caf50' : 
-                                   'inherit';
+     * @param {string} message
+     * @param {string} [type]
+      */
+     showStatus(message, type = 'info') {
+         const statusMessage = /** @type {HTMLElement} */ (this.container.querySelector('.status-message'));
+        if (!statusMessage) return;
+         statusMessage.textContent = message;
+         statusMessage.style.color = type === 'error' ? '#f44336' :
+                                    type === 'success' ? '#4caf50' :
+                                    'inherit';
         
-        // 3秒后清除消息
-        setTimeout(() => {
-            if (statusMessage.textContent === message) {
-                statusMessage.textContent = '';
-            }
-        }, 3000);
-    }
+         // 3秒后清除消息
+         setTimeout(() => {
+             if (statusMessage.textContent === message) {
+                 statusMessage.textContent = '';
+             }
+         }, 3000);
+     }
     
     /**
      * 更新状态栏
-     */
-    updateStatusBar() {
-        const workflow = this.workflowManager.currentWorkflow;
-        if (!workflow) return;
+      */
+     updateStatusBar() {
+         const workflow = this.workflowManager.currentWorkflow;
+         if (!workflow) return;
         
-        document.getElementById('zoom-level').textContent = Math.round(this.scale * 100) + '%';
-        document.getElementById('node-count').textContent = workflow.nodes.length;
-        document.getElementById('connection-count').textContent = workflow.connections.length;
-    }
+         const zoomLevel = document.getElementById('zoom-level');
+         if (zoomLevel) zoomLevel.textContent = Math.round(this.scale * 100) + '%';
+        
+         const nodeCount = document.getElementById('node-count');
+         if (nodeCount) nodeCount.textContent = workflow.nodes.length.toString();
+
+         const connectionCount = document.getElementById('connection-count');
+         if (connectionCount) connectionCount.textContent = workflow.connections.length.toString();
+     }
     
     /**
-     * 调整颜色亮度
-     */
-    adjustColor(color, amount) {
-        const num = parseInt(color.replace('#', ''), 16);
-        const r = Math.max(0, Math.min(255, (num >> 16) + amount));
-        const g = Math.max(0, Math.min(255, ((num >> 8) & 0x00FF) + amount));
-        const b = Math.max(0, Math.min(255, (num & 0x0000FF) + amount));
-        return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
-    }
+     * @param {string} color
+     * @param {number} amount
+      */
+     adjustColor(color, amount) {
+         const num = parseInt(color.replace('#', ''), 16);
+         const r = Math.max(0, Math.min(255, (num >> 16) + amount));
+         const g = Math.max(0, Math.min(255, ((num >> 8) & 0x00FF) + amount));
+         const b = Math.max(0, Math.min(255, (num & 0x0000FF) + amount));
+         return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+     }
 }
 
 // 导出

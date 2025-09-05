@@ -5,6 +5,10 @@ const vscode = require('vscode');
  * Provides visual feedback for active interaction mode and capabilities
  */
 class ModeIndicator {
+    /**
+     * @param {vscode.ExtensionContext} context
+     * @param {import('../../modes/InteractionModeManager').InteractionModeManager} modeManager
+     */
     constructor(context, modeManager) {
         this.context = context;
         this.modeManager = modeManager;
@@ -127,21 +131,21 @@ class ModeIndicator {
      */
     registerEventListeners() {
         // Mode change events
-        this.modeManager.on('mode:transition:start', (data) => {
+        this.modeManager.on('mode:transition:start', (/** @type {any} */ data) => {
             this.showTransitionAnimation(data);
         });
         
-        this.modeManager.on('mode:transition:complete', (data) => {
+        this.modeManager.on('mode:transition:complete', (/** @type {any} */ data) => {
             this.updateIndicators();
             this.showModeChangeNotification(data);
         });
         
-        this.modeManager.on('mode:suggestion', (data) => {
+        this.modeManager.on('mode:suggestion', (/** @type {any} */ data) => {
             this.showModeSuggestion(data);
         });
         
         // Persona events
-        this.modeManager.on('persona:activated', (data) => {
+        this.modeManager.on('persona:activated', (/** @type {any} */ data) => {
             this.updatePersonaIndicator(data);
         });
         
@@ -247,21 +251,28 @@ class ModeIndicator {
         
         // Update mode indicator
         const modeConfig = this.modeManager.modeConfigurations.get(currentMode);
+        // @ts-ignore
         const modeIcon = this.modeIcons[currentMode] || '$(question)';
         const modeName = modeConfig?.name || currentMode;
         
-        this.modeStatusBarItem.text = `${modeIcon} ${modeName}`;
-        this.modeStatusBarItem.backgroundColor = new vscode.ThemeColor(
-            this.getStatusBarColor(currentMode)
-        );
+        if (this.modeStatusBarItem) {
+            this.modeStatusBarItem.text = `${modeIcon} ${modeName}`;
+            this.modeStatusBarItem.backgroundColor = new vscode.ThemeColor(
+                this.getStatusBarColor(currentMode)
+            );
+        }
         
         // Update persona indicator
         if (activePersona) {
             const persona = this.modeManager.personas.get(activePersona);
-            this.personaStatusBarItem.text = `$(person) ${activePersona}`;
-            this.personaStatusBarItem.show();
+            if (this.personaStatusBarItem) {
+                this.personaStatusBarItem.text = `$(person) ${activePersona}`;
+                this.personaStatusBarItem.show();
+            }
         } else {
-            this.personaStatusBarItem.hide();
+            if (this.personaStatusBarItem) {
+                this.personaStatusBarItem.hide();
+            }
         }
         
         // Update capability indicator
@@ -271,7 +282,9 @@ class ModeIndicator {
         if (capabilities.workflows) capabilityIcons.push('$(git-merge)');
         if (capabilities.streaming) capabilityIcons.push('$(broadcast)');
         
-        this.capabilityStatusBarItem.text = capabilityIcons.join(' ');
+        if (this.capabilityStatusBarItem) {
+            this.capabilityStatusBarItem.text = capabilityIcons.join(' ');
+        }
         
         // Update editor decorations
         this.updateEditorDecorations(currentMode);
@@ -279,6 +292,9 @@ class ModeIndicator {
     
     /**
      * Update editor decorations
+     */
+    /**
+     * @param {string} mode
      */
     updateEditorDecorations(mode) {
         const activeEditor = vscode.window.activeTextEditor;
@@ -299,13 +315,21 @@ class ModeIndicator {
     /**
      * Show transition animation
      */
+    /**
+     * @param {{ to: any; }} data
+     */
     showTransitionAnimation(data) {
         // Update status bar with transition state
-        this.modeStatusBarItem.text = `$(sync~spin) Switching to ${data.to}...`;
+        if (this.modeStatusBarItem) {
+            this.modeStatusBarItem.text = `$(sync~spin) Switching to ${data.to}...`;
+        }
     }
     
     /**
      * Show mode change notification
+     */
+    /**
+     * @param {{ to: any; }} data
      */
     showModeChangeNotification(data) {
         const modeConfig = this.modeManager.modeConfigurations.get(data.to);
@@ -319,6 +343,9 @@ class ModeIndicator {
     
     /**
      * Show mode suggestion
+     */
+    /**
+     * @param {{ suggested: string; reason: string; }} data
      */
     async showModeSuggestion(data) {
         const modeConfig = this.modeManager.modeConfigurations.get(data.suggested);
@@ -344,21 +371,26 @@ class ModeIndicator {
     /**
      * Update persona indicator
      */
+    /**
+     * @param {{ current: string; }} data
+     */
     updatePersonaIndicator(data) {
-        if (data.current) {
-            const persona = this.modeManager.personas.get(data.current);
-            this.personaStatusBarItem.text = `$(person) ${data.current}`;
-            this.personaStatusBarItem.tooltip = persona?.description || 'Active persona';
-            this.personaStatusBarItem.show();
-            
-            vscode.window.showInformationMessage(
-                `Activated persona: ${data.current}`,
-                { modal: false }
-            );
-        } else {
-            this.personaStatusBarItem.hide();
+        if (this.personaStatusBarItem) {
+            if (data.current) {
+                const persona = this.modeManager.personas.get(data.current);
+                this.personaStatusBarItem.text = `$(person) ${data.current}`;
+                this.personaStatusBarItem.tooltip = persona?.description || 'Active persona';
+                this.personaStatusBarItem.show();
+                
+                vscode.window.showInformationMessage(
+                    `Activated persona: ${data.current}`,
+                    { modal: false }
+                );
+            } else {
+                this.personaStatusBarItem.hide();
+            }
         }
-    }
+     }
     
     /**
      * Create new persona
@@ -434,7 +466,15 @@ class ModeIndicator {
     /**
      * Get capabilities HTML
      */
+    /**
+     * @param {string} mode
+     * @param {any} capabilities
+     * @param {any} persona
+     * @param {any} metrics
+     */
     getCapabilitiesHtml(mode, capabilities, persona, metrics) {
+        // @ts-ignore
+        const modeColor = this.modeColors[mode] || '#666';
         return `
             <!DOCTYPE html>
             <html>
@@ -486,7 +526,7 @@ class ModeIndicator {
                         display: inline-block;
                         padding: 5px 10px;
                         border-radius: 3px;
-                        background: ${this.modeColors[mode]};
+                        background: ${modeColor};
                         color: white;
                         font-weight: bold;
                     }
@@ -509,8 +549,8 @@ class ModeIndicator {
                     </div>
                     <div class="capability">
                         <div class="capability-icon ${
-                            capabilities.agents === true ? 'enabled' : 
-                            capabilities.agents === 'selective' ? 'selective' : 
+                            capabilities.agents === true ? 'enabled' :
+                            capabilities.agents === 'selective' ? 'selective' :
                             'disabled'
                         }"></div>
                         <span>Agents: ${
@@ -572,6 +612,9 @@ class ModeIndicator {
     /**
      * Get status bar color for mode
      */
+    /**
+     * @param {string} mode
+     */
     getStatusBarColor(mode) {
         const colors = {
             direct: 'statusBarItem.prominentBackground',
@@ -579,6 +622,7 @@ class ModeIndicator {
             hybrid: 'statusBarItem.errorBackground'
         };
         
+        // @ts-ignore
         return colors[mode] || 'statusBarItem.background';
     }
     

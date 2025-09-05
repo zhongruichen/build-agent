@@ -20,43 +20,51 @@ class MCPManager {
     
     /**
      * Initialize the MCP manager
-     * @param {Object} context - Extension context
-     */
-    async initialize(context) {
-        if (this.isInitialized) {
-            return;
-        }
+     * @param {vscode.ExtensionContext} context - Extension context
+      */
+     async initialize(context) {
+         if (this.isInitialized) {
+             return;
+         }
         
-        logger.log('Initializing MCP Manager...');
+         logger.log('Initializing MCP Manager...');
         
-        // Initialize tool adapter for exposing internal tools
-        this.toolAdapter = new MCPToolAdapter();
+         // Initialize tool adapter for exposing internal tools
+         this.toolAdapter = new MCPToolAdapter();
         
-        // Load MCP configuration
-        const config = vscode.workspace.getConfiguration('multiAgent');
-        const mcpConfig = config.get('mcp', {});
+         // Load MCP configuration
+         const config = vscode.workspace.getConfiguration('multiAgent');
+         /**
+          * @typedef {object} MCPConfig
+          * @property {any[]} servers
+          * @property {any[]} clients
+          */
+         /** @type {MCPConfig} */
+         const mcpConfig = config.get('mcp', { servers: [], clients: [] });
         
-        // Start configured MCP servers
-        if (mcpConfig.servers) {
-            for (const serverConfig of mcpConfig.servers) {
-                try {
-                    await this.startServer(serverConfig);
-                } catch (error) {
-                    logger.logError(`Failed to start MCP server ${serverConfig.name}: ${error.message}`);
-                }
-            }
-        }
+         // Start configured MCP servers
+         if (mcpConfig.servers) {
+             for (const serverConfig of mcpConfig.servers) {
+                 try {
+                     await this.startServer(serverConfig);
+                 } catch (error) {
+                     const errorMessage = error instanceof Error ? error.message : String(error);
+                     logger.logError(`Failed to start MCP server ${serverConfig.name}: ${errorMessage}`);
+                 }
+             }
+         }
         
-        // Connect to configured MCP clients
-        if (mcpConfig.clients) {
-            for (const clientConfig of mcpConfig.clients) {
-                try {
-                    await this.connectClient(clientConfig);
-                } catch (error) {
-                    logger.logError(`Failed to connect to MCP client ${clientConfig.name}: ${error.message}`);
-                }
-            }
-        }
+         // Connect to configured MCP clients
+         if (mcpConfig.clients) {
+             for (const clientConfig of mcpConfig.clients) {
+                 try {
+                     await this.connectClient(clientConfig);
+                 } catch (error) {
+                     const errorMessage = error instanceof Error ? error.message : String(error);
+                     logger.logError(`Failed to connect to MCP client ${clientConfig.name}: ${errorMessage}`);
+                 }
+             }
+         }
         
         this.isInitialized = true;
         logger.log('MCP Manager initialized successfully');
@@ -64,26 +72,31 @@ class MCPManager {
     
     /**
      * Start an MCP server
-     * @param {Object} config - Server configuration
-     */
-    async startServer(config) {
-        const { name, command, args = [], env = {} } = config;
+     * @param {object} config - Server configuration
+     * @param {string} config.name
+     * @param {string} config.command
+     * @param {string[]} [config.args]
+     * @param {object} [config.env]
+      */
+     async startServer(config) {
+         const { name, command, args = [], env = {} } = config;
         
-        if (this.servers.has(name)) {
-            throw new Error(`Server ${name} is already running`);
-        }
+         if (this.servers.has(name)) {
+             throw new Error(`Server ${name} is already running`);
+         }
         
-        logger.log(`Starting MCP server: ${name}`);
+         logger.log(`Starting MCP server: ${name}`);
         
-        // Spawn the server process
-        const serverProcess = spawn(command, args, {
-            env: { ...process.env, ...env },
-            shell: true
-        });
+         // Spawn the server process
+         const serverProcess = spawn(command, args, {
+             env: { ...process.env, ...env },
+             shell: true
+         });
         
-        // Create transport
-        const transport = new StdioTransport(serverProcess);
-        await transport.initialize();
+         // Create transport
+         // @ts-ignore
+         const transport = new StdioTransport(serverProcess);
+         await transport.initialize();
         
         // Create and initialize server wrapper
         const server = {
@@ -134,34 +147,39 @@ class MCPManager {
     
     /**
      * Connect to an MCP server as a client
-     * @param {Object} config - Client configuration
-     */
-    async connectClient(config) {
-        const { name, command, args = [], env = {} } = config;
+     * @param {object} config - Client configuration
+     * @param {string} config.name
+     * @param {string} [config.command]
+     * @param {string[]} [config.args]
+     * @param {object} [config.env]
+      */
+     async connectClient(config) {
+         const { name, command, args = [], env = {} } = config;
         
-        if (this.clients.has(name)) {
-            throw new Error(`Client ${name} is already connected`);
-        }
+         if (this.clients.has(name)) {
+             throw new Error(`Client ${name} is already connected`);
+         }
         
-        logger.log(`Connecting to MCP server: ${name}`);
+         logger.log(`Connecting to MCP server: ${name}`);
         
-        // Create client
-        const client = new MCPClient({ name });
+         // Create client
+         const client = new MCPClient({ name });
         
-        // Spawn the server process if command is provided
-        let transport;
-        if (command) {
-            const serverProcess = spawn(command, args, {
-                env: { ...process.env, ...env },
-                shell: true
-            });
+         // Spawn the server process if command is provided
+         let transport;
+         if (command) {
+             const serverProcess = spawn(command, args, {
+                 env: { ...process.env, ...env },
+                 shell: true
+             });
             
-            transport = new StdioTransport(serverProcess);
-            await transport.initialize();
-        } else {
-            // Connect to existing server
-            throw new Error('Connecting to existing servers not yet implemented');
-        }
+             // @ts-ignore
+             transport = new StdioTransport(serverProcess);
+             await transport.initialize();
+         } else {
+             // Connect to existing server
+             throw new Error('Connecting to existing servers not yet implemented');
+         }
         
         // Connect client
         await client.connect(transport);
@@ -213,8 +231,10 @@ class MCPManager {
             toolRegistry.toolRegistry[toolName] = {
                 implementation: async (...args) => {
                     const result = await client.callTool(tool.name, args[0]);
+                    // @ts-ignore
                     return result.content[0].text;
                 },
+                /** @param {any} args */
                 paramExtractor: (args) => [args]
             };
             
@@ -224,66 +244,69 @@ class MCPManager {
     
     /**
      * Get all available MCP tools
-     * @returns {Array} List of MCP tools
-     */
-    getAvailableTools() {
-        const tools = [];
+     * @returns {any[]} List of MCP tools
+      */
+     getAvailableTools() {
+         /** @type {any[]} */
+         const tools = [];
         
-        // Get tools from all connected clients
-        for (const [name, clientInfo] of this.clients) {
-            const clientTools = clientInfo.client.getTools();
-            for (const tool of clientTools) {
-                tools.push({
-                    source: name,
-                    ...tool
-                });
-            }
-        }
+         // Get tools from all connected clients
+         for (const [name, clientInfo] of this.clients) {
+             const clientTools = clientInfo.client.getTools();
+             for (const tool of clientTools) {
+                 tools.push({
+                     source: name,
+                     ...tool
+                 });
+             }
+         }
         
-        return tools;
-    }
+         return tools;
+     }
     
     /**
      * Get all available MCP resources
-     * @returns {Array} List of MCP resources
-     */
-    getAvailableResources() {
-        const resources = [];
+     * @returns {any[]} List of MCP resources
+      */
+     getAvailableResources() {
+         /** @type {any[]} */
+         const resources = [];
         
-        // Get resources from all connected clients
-        for (const [name, clientInfo] of this.clients) {
-            const clientResources = clientInfo.client.getResources();
-            for (const resource of clientResources) {
-                resources.push({
-                    source: name,
-                    ...resource
-                });
-            }
-        }
+         // Get resources from all connected clients
+         for (const [name, clientInfo] of this.clients) {
+             const clientResources = clientInfo.client.getResources();
+             for (const resource of clientResources) {
+                 resources.push({
+                     source: name,
+                     ...resource
+                 });
+             }
+         }
         
-        return resources;
-    }
+         return resources;
+     }
     
     /**
      * Get all available MCP prompts
-     * @returns {Array} List of MCP prompts
-     */
-    getAvailablePrompts() {
-        const prompts = [];
+     * @returns {any[]} List of MCP prompts
+      */
+     getAvailablePrompts() {
+         /** @type {any[]} */
+         const prompts = [];
         
-        // Get prompts from all connected clients
-        for (const [name, clientInfo] of this.clients) {
-            const clientPrompts = clientInfo.client.getPrompts();
-            for (const prompt of clientPrompts) {
-                prompts.push({
-                    source: name,
-                    ...prompt
-                });
-            }
-        }
+         // Get prompts from all connected clients
+         for (const [name, clientInfo] of this.clients) {
+             const clientPrompts = clientInfo.client.getPrompts();
+             for (const prompt of clientPrompts) {
+                 prompts.push({
+                     source: name,
+                     ...prompt
+                 });
+             }
+         }
         
-        return prompts;
-    }
+         return prompts;
+     }
     
     /**
      * Call a tool on a specific MCP server
@@ -378,16 +401,18 @@ class MCPManager {
             try {
                 await this.stopServer(name);
             } catch (error) {
-                logger.logError(`Error stopping server ${name}: ${error.message}`);
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                logger.logError(`Error stopping server ${name}: ${errorMessage}`);
             }
         }
-        
+       
         // Disconnect all clients
         for (const name of this.clients.keys()) {
             try {
                 await this.disconnectClient(name);
             } catch (error) {
-                logger.logError(`Error disconnecting client ${name}: ${error.message}`);
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                logger.logError(`Error disconnecting client ${name}: ${errorMessage}`);
             }
         }
         
@@ -397,12 +422,13 @@ class MCPManager {
 }
 
 // Singleton instance
+/** @type {MCPManager | null} */
 let mcpManager = null;
 
 /**
  * Get or create the MCP manager instance
  * @returns {MCPManager} The MCP manager instance
- */
+  */
 function getMCPManager() {
     if (!mcpManager) {
         mcpManager = new MCPManager();

@@ -6,6 +6,13 @@ const { Readable, Transform } = require('stream');
  * Supports SSE, WebSocket, and chunked transfer
  */
 class StreamingMCPServer extends EventEmitter {
+    /**
+     * @param {object} [options]
+     * @param {number} [options.chunkSize]
+     * @param {number} [options.highWaterMark]
+     * @param {number} [options.streamTimeout]
+     * @param {boolean} [options.compressionEnabled]
+     */
     constructor(options = {}) {
         super();
         
@@ -56,7 +63,7 @@ class StreamingMCPServer extends EventEmitter {
                     this.push(JSON.stringify(response) + '\n');
                     callback();
                 } catch (error) {
-                    callback(error);
+                    callback(/** @type {Error} */ (error));
                 }
             }
         });
@@ -78,6 +85,7 @@ class StreamingMCPServer extends EventEmitter {
         
         // Set timeout
         const timeout = setTimeout(() => {
+            // @ts-ignore
             this.closeStream(streamId, new Error('Stream timeout'));
         }, this.config.streamTimeout);
         
@@ -89,6 +97,9 @@ class StreamingMCPServer extends EventEmitter {
     /**
      * Enable Server-Sent Events (SSE) support
      * @param {Object} response - HTTP response object
+     */
+    /**
+     * @param {any} response
      */
     enableSSE(response) {
         response.writeHead(200, {
@@ -113,11 +124,18 @@ class StreamingMCPServer extends EventEmitter {
         });
         
         return {
+            /**
+             * @param {any} event
+             * @param {any} data
+             */
             send: (event, data) => {
                 response.write(`event: ${event}\n`);
                 response.write(`data: ${JSON.stringify(data)}\n\n`);
             },
             
+            /**
+             * @param {any} data
+             */
             sendRaw: (data) => {
                 response.write(`data: ${data}\n\n`);
             },
@@ -133,50 +151,56 @@ class StreamingMCPServer extends EventEmitter {
      * Enable WebSocket support for bidirectional streaming
      * @param {WebSocket} ws - WebSocket connection
      */
+    /**
+     * @param {any} ws
+     */
     enableWebSocket(ws) {
         const clientId = this.generateStreamId();
-        
-        ws.on('message', async (message) => {
+       
+        ws.on('message', async (/** @type {any} */ message) => {
             try {
-                const request = JSON.parse(message);
-                
+                const request = JSON.parse(message.toString());
+               
                 if (request.method === 'tool/stream') {
                     const stream = this.createToolStream(
                         request.params.toolName,
                         request.params.arguments
                     );
-                    
+                   
                     stream.on('data', (chunk) => {
                         if (ws.readyState === ws.OPEN) {
                             ws.send(chunk);
                         }
                     });
-                    
+                   
                     stream.on('end', () => {
+                        // @ts-ignore
+                        const streamId = stream.streamId;
                         ws.send(JSON.stringify({
                             jsonrpc: '2.0',
                             method: 'stream/complete',
-                            params: { streamId: stream.streamId }
+                            params: { streamId }
                         }));
                     });
                 }
             } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
                 ws.send(JSON.stringify({
                     jsonrpc: '2.0',
                     error: {
                         code: -32700,
                         message: 'Parse error',
-                        data: error.message
+                        data: errorMessage
                     }
                 }));
             }
         });
-        
+       
         ws.on('close', () => {
             this.emit('ws:disconnected', clientId);
         });
-        
-        ws.on('error', (error) => {
+       
+        ws.on('error', (/** @type {any} */ error) => {
             this.emit('ws:error', { clientId, error });
         });
         
@@ -193,6 +217,12 @@ class StreamingMCPServer extends EventEmitter {
      * @param {Readable} source - Source stream
      * @param {Object} options - Chunking options
      * @returns {Readable} Chunked stream
+     */
+    /**
+     * @param {Readable} source
+     * @param {object} [options]
+     * @param {number} [options.chunkSize]
+     * @param {number} [options.totalSize]
      */
     enableChunkedTransfer(source, options = {}) {
         const chunkSize = options.chunkSize || this.config.chunkSize;
@@ -239,50 +269,55 @@ class StreamingMCPServer extends EventEmitter {
     
     /**
      * Handle stream end
+     * @param {any} streamId
      * @private
-     */
-    handleStreamEnd(streamId) {
-        const streamInfo = this.activeStreams.get(streamId);
-        if (streamInfo) {
-            const duration = Date.now() - streamInfo.startTime;
-            this.emit('stream:end', {
-                streamId,
-                toolName: streamInfo.toolName,
-                duration,
-                bytesTransferred: streamInfo.bytesTransferred
-            });
+      */
+     handleStreamEnd(streamId) {
+         const streamInfo = this.activeStreams.get(streamId);
+         if (streamInfo) {
+             const duration = Date.now() - streamInfo.startTime;
+             this.emit('stream:end', {
+                 streamId,
+                 toolName: streamInfo.toolName,
+                 duration,
+                 bytesTransferred: streamInfo.bytesTransferred
+             });
             
-            this.activeStreams.delete(streamId);
-            this.streamMetrics.activeStreams--;
-        }
-    }
+             this.activeStreams.delete(streamId);
+             this.streamMetrics.activeStreams--;
+         }
+     }
     
     /**
      * Handle stream error
+     * @param {any} streamId
+     * @param {any} error
      * @private
-     */
-    handleStreamError(streamId, error) {
-        this.streamMetrics.errors++;
-        this.emit('stream:error', { streamId, error });
-        this.closeStream(streamId, error);
-    }
+      */
+     handleStreamError(streamId, error) {
+         this.streamMetrics.errors++;
+         this.emit('stream:error', { streamId, error });
+         this.closeStream(streamId, error);
+     }
     
     /**
      * Close a stream
+     * @param {any} streamId
+     * @param {Error | null} [error]
      * @private
-     */
-    closeStream(streamId, error = null) {
-        const streamInfo = this.activeStreams.get(streamId);
-        if (streamInfo && streamInfo.stream) {
-            if (error) {
-                streamInfo.stream.destroy(error);
-            } else {
-                streamInfo.stream.end();
-            }
-            this.activeStreams.delete(streamId);
-            this.streamMetrics.activeStreams--;
-        }
-    }
+      */
+     closeStream(streamId, error = null) {
+         const streamInfo = this.activeStreams.get(streamId);
+         if (streamInfo && streamInfo.stream) {
+             if (error) {
+                 streamInfo.stream.destroy(error);
+             } else {
+                 streamInfo.stream.end();
+             }
+             this.activeStreams.delete(streamId);
+             this.streamMetrics.activeStreams--;
+         }
+     }
     
     /**
      * Generate unique stream ID

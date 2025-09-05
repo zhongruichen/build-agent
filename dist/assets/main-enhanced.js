@@ -54,7 +54,17 @@
             'https://api.together.xyz/v1'
         ],
         models: [
-            "chatgpt-4o-latest-20250326", "gpt-4.1-2025-04-14", "gpt-5-high","gpt-5-chat","claude-3-7-sonnet-20250219","claude-3-7-sonnet-20250219-thinking-32k","claude-opus-4-1-20250805","claude-opus-4-1-20250805-thinking-16k","claude-opus-4-20250514","claude-opus-4-20250514-thinking-16k","claude-sonnet-4-20250514","claude-sonnet-4-20250514-thinking-32k"
+            "chatgpt-4o-latest-20250326", 
+            "gpt-4.1-2025-04-14", 
+            "gpt-5-high","gpt-5-chat",
+            "claude-3-7-sonnet-20250219",
+            "claude-3-7-sonnet-20250219-thinking-32k",
+            "claude-opus-4-1-20250805",
+            "claude-opus-4-1-20250805-thinking-16k",
+            "claude-opus-4-20250514",
+            "claude-opus-4-20250514-thinking-16k",
+            "claude-sonnet-4-20250514",
+            "claude-sonnet-4-20250514-thinking-32k"
         ]
     };
 

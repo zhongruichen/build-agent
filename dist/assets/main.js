@@ -1,3 +1,111 @@
+// UI诊断日志
+console.group('🔍 UI诊断报告');
+console.log('正在分析UI问题...');
+
+// 检查样式冲突
+const checkStyleConflicts = () => {
+    const styles = document.styleSheets;
+    console.log(`📊 加载的样式表数量: ${styles.length}`);
+    
+    // 检查重复的CSS规则
+    const rules = new Set();
+    let duplicates = 0;
+    
+    Array.from(styles).forEach(sheet => {
+        try {
+            Array.from(sheet.cssRules || []).forEach(rule => {
+                if (rule.selectorText) {
+                    if (rules.has(rule.selectorText)) {
+                        duplicates++;
+                        console.warn(`⚠️ 重复的CSS选择器: ${rule.selectorText}`);
+                    }
+                    rules.add(rule.selectorText);
+                }
+            });
+        } catch (e) {
+            // 跨域样式表无法访问
+        }
+    });
+    
+    console.log(`⚠️ 发现 ${duplicates} 个重复的CSS规则`);
+};
+
+// 检查颜色一致性
+const checkColorConsistency = () => {
+    const computedStyles = getComputedStyle(document.body);
+    const vsCodeColors = [
+        '--vscode-editor-background',
+        '--vscode-editor-foreground',
+        '--vscode-button-background',
+        '--vscode-button-foreground'
+    ];
+    
+    console.log('🎨 颜色系统检查:');
+    vsCodeColors.forEach(color => {
+        const value = computedStyles.getPropertyValue(color);
+        if (!value) {
+            console.error(`❌ 缺少VSCode颜色变量: ${color}`);
+        } else {
+            console.log(`✅ ${color}: ${value}`);
+        }
+    });
+};
+
+// 检查响应式布局
+const checkResponsiveLayout = () => {
+    const width = window.innerWidth;
+    console.log(`📱 当前视口宽度: ${width}px`);
+    
+    if (width < 768) {
+        console.log('📱 移动视图模式');
+    } else if (width < 1024) {
+        console.log('💻 平板视图模式');
+    } else {
+        console.log('🖥️ 桌面视图模式');
+    }
+    
+    // 检查溢出元素
+    const overflowElements = Array.from(document.querySelectorAll('*')).filter(el => {
+        return el.scrollWidth > el.clientWidth;
+    });
+    
+    if (overflowElements.length > 0) {
+        console.warn(`⚠️ 发现 ${overflowElements.length} 个溢出元素:`, overflowElements);
+    }
+};
+
+// 检查交互元素
+const checkInteractiveElements = () => {
+    const buttons = document.querySelectorAll('button');
+    const inputs = document.querySelectorAll('input, textarea, select');
+    
+    console.log(`🔘 交互元素统计:`);
+    console.log(`  - 按钮: ${buttons.length}`);
+    console.log(`  - 输入框: ${inputs.length}`);
+    
+    // 检查最小触摸目标
+    let smallTargets = 0;
+    buttons.forEach(btn => {
+        const rect = btn.getBoundingClientRect();
+        if (rect.width < 44 || rect.height < 44) {
+            smallTargets++;
+        }
+    });
+    
+    if (smallTargets > 0) {
+        console.warn(`⚠️ ${smallTargets} 个按钮小于推荐的44px触摸目标`);
+    }
+};
+
+// 运行诊断
+setTimeout(() => {
+    checkStyleConflicts();
+    checkColorConsistency();
+    checkResponsiveLayout();
+    checkInteractiveElements();
+    console.groupEnd();
+}, 1000);
+
 // @ts-nocheck
 
 (function () {
@@ -973,31 +1081,64 @@
     }
     
     // --- THINKING CONFIG FUNCTIONS ---
+    let isUpdatingThinkingConfig = false; // 防止递归调用的标志
+    
     function renderThinkingConfig(config) {
-        if (!thinkingPreset) return;
+        if (!thinkingPreset || isUpdatingThinkingConfig) return;
+        
+        isUpdatingThinkingConfig = true; // 设置标志，防止递归
+        
         const cfg = config;
         thinkingPreset.value = cfg.preset || 'default';
-        thinkingDepth.value = cfg.depth || '';
-        thinkingIterate.value = cfg.iterate || '';
-        thinkingModel.value = cfg.model || '';
-        thinkingFocus.value = cfg.focus || '';
-        thinkingVisualize.checked = cfg.visualize ?? true;
-        thinkingSuggest.checked = cfg.suggest ?? false;
-        thinkingParallel.checked = cfg.parallel ?? false;
-        thinkingTrace.checked = cfg.trace ?? false;
-        thinkingConfidence.checked = cfg.confidence ?? false;
-        thinkingCritique.checked = cfg.critique ?? false;
-        handleThinkingPresetChange();
+        
+        // 更新所有配置字段
+        if (thinkingDepth) thinkingDepth.value = cfg.depth || '';
+        if (thinkingIterate) thinkingIterate.value = cfg.iterate || '';
+        if (thinkingModel) thinkingModel.value = cfg.model || '';
+        if (thinkingFocus) thinkingFocus.value = cfg.focus || '';
+        if (thinkingVisualize) thinkingVisualize.checked = cfg.visualize ?? true;
+        if (thinkingSuggest) thinkingSuggest.checked = cfg.suggest ?? false;
+        if (thinkingParallel) thinkingParallel.checked = cfg.parallel ?? false;
+        if (thinkingTrace) thinkingTrace.checked = cfg.trace ?? false;
+        if (thinkingConfidence) thinkingConfidence.checked = cfg.confidence ?? false;
+        if (thinkingCritique) thinkingCritique.checked = cfg.critique ?? false;
+        
+        // 根据preset显示/隐藏自定义设置
+        if (thinkingCustomSettings) {
+            thinkingCustomSettings.style.display = (cfg.preset === 'custom') ? 'block' : 'none';
+        }
+        
+        isUpdatingThinkingConfig = false; // 重置标志
     }
 
     function handleThinkingPresetChange() {
-        const preset = thinkingPreset.value;
+        if (isUpdatingThinkingConfig) return; // 如果正在更新，直接返回避免递归
+        
+        const preset = thinkingPreset?.value;
+        if (!preset) return;
+        
         if (preset === 'custom') {
-            thinkingCustomSettings.style.display = 'block';
+            if (thinkingCustomSettings) {
+                thinkingCustomSettings.style.display = 'block';
+            }
         } else {
-            thinkingCustomSettings.style.display = 'none';
+            if (thinkingCustomSettings) {
+                thinkingCustomSettings.style.display = 'none';
+            }
+            // 只更新配置值，不再递归调用renderThinkingConfig
             const presetConfig = thinkingPresets[preset] || {};
-            renderThinkingConfig(presetConfig);
+            
+            // 直接更新字段，避免递归
+            if (thinkingDepth) thinkingDepth.value = presetConfig.depth || '';
+            if (thinkingIterate) thinkingIterate.value = presetConfig.iterate || '';
+            if (thinkingModel) thinkingModel.value = presetConfig.model || '';
+            if (thinkingFocus) thinkingFocus.value = presetConfig.focus || '';
+            if (thinkingVisualize) thinkingVisualize.checked = presetConfig.visualize ?? true;
+            if (thinkingSuggest) thinkingSuggest.checked = presetConfig.suggest ?? false;
+            if (thinkingParallel) thinkingParallel.checked = presetConfig.parallel ?? false;
+            if (thinkingTrace) thinkingTrace.checked = presetConfig.trace ?? false;
+            if (thinkingConfidence) thinkingConfidence.checked = presetConfig.confidence ?? false;
+            if (thinkingCritique) thinkingCritique.checked = presetConfig.critique ?? false;
         }
     }
 

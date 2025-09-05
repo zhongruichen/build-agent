@@ -4,206 +4,346 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>多智能体协作开发平台</title>
+    <!-- 设计系统 -->
+    <link rel="stylesheet" href="design-system.css">
+    <!-- 组件样式 -->
+    <link rel="stylesheet" href="components.css">
+    <!-- 旧版样式（后续将被替换） -->
     <link rel="stylesheet" href="style.css">
+    <!-- 代码高亮 -->
     <link rel="stylesheet" href="vs2015.min.css">
     <script src="highlight.min.js"></script>
 </head>
-<body>
-    <h1>多智能体协作开发平台</h1>
+<body class="app-container">
+    <header class="app-header">
+        <h1 class="app-title">🚀 多智能体协作开发平台</h1>
+    </header>
 
     <!-- 首次使用引导 -->
-    <div id="welcome-guide" class="welcome-guide" style="display: none;">
-        <div class="welcome-content">
-            <h2>👋 欢迎使用多智能体协作开发平台！</h2>
-            <p>让我们快速配置您的AI开发团队，只需3步即可开始：</p>
-            <div class="guide-steps">
-                <div class="guide-step">
-                    <span class="step-number">1</span>
-                    <h3>选择AI模型</h3>
-                    <p>从预设模板快速配置，或自定义您的模型</p>
-                </div>
-                <div class="guide-step">
-                    <span class="step-number">2</span>
-                    <h3>分配角色</h3>
-                    <p>为不同的智能体角色分配合适的模型</p>
-                </div>
-                <div class="guide-step">
-                    <span class="step-number">3</span>
-                    <h3>开始任务</h3>
-                    <p>输入您的开发目标，AI团队将自动协作完成</p>
-                </div>
+    <div id="welcome-guide" class="modal-overlay" style="display: none;">
+        <div class="modal animate-bounce">
+            <div class="modal-header">
+                <h2 class="modal-title">👋 欢迎使用多智能体协作开发平台！</h2>
             </div>
-            <div class="guide-actions">
-                <button id="start-guide-btn" class="button-primary">开始配置向导</button>
-                <button id="skip-guide-btn" class="button">跳过，我已熟悉</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="tabs">
-        <button class="tab-button active" data-tab="status">任务状态</button>
-        <button class="tab-button" data-tab="workspace">工作区状态</button>
-        <button class="tab-button" data-tab="settings">设置</button>
-    </div>
-
-    <!-- Status Tab Content -->
-    <div id="status" class="tab-content active">
-        <div class="container">
-             <div class="section">
-               <h2>总体目标</h2>
-               <p id="overall-goal">在下方输入您的开发需求，AI团队将自动规划并执行...</p>
-           </div>
-           <div class="section">
-               <h2>当前计划</h2>
-               <div id="plan-progress" class="progress-bar" style="display: none;">
-                   <div id="plan-progress-bar" class="progress-bar-fill"></div>
-                   <span id="plan-progress-text" class="progress-text">0%</span>
-               </div>
-               <ul id="plan-list"></ul>
-                <div id="plan-review-container" style="display: none;">
-                    <h3>请审核并批准计划</h3>
-                    <div id="editable-plan-list"></div>
-                    <button id="add-task-btn" class="button">＋ 添加新任务</button>
-                    <div class="form-buttons">
-                        <button id="approve-plan-btn" class="button-primary">批准计划并执行</button>
-                        <button id="cancel-plan-btn" class="button">取消任务</button>
+            <div class="modal-body">
+                <p style="text-align: center; margin-bottom: var(--space-6);">让我们快速配置您的AI开发团队，只需3步即可开始：</p>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-4);">
+                    <div class="card">
+                        <div class="card-header">
+                            <span style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: var(--brand-primary); color: white; border-radius: 50%; font-weight: bold;">1</span>
+                            <h3 class="card-title">选择AI模型</h3>
+                        </div>
+                        <div class="card-content">
+                            <p>从预设模板快速配置，或自定义您的模型</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <span style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: var(--brand-primary); color: white; border-radius: 50%; font-weight: bold;">2</span>
+                            <h3 class="card-title">分配角色</h3>
+                        </div>
+                        <div class="card-content">
+                            <p>为不同的智能体角色分配合适的模型</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <span style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: var(--brand-primary); color: white; border-radius: 50%; font-weight: bold;">3</span>
+                            <h3 class="card-title">开始任务</h3>
+                        </div>
+                        <div class="card-content">
+                            <p>输入您的开发目标，AI团队将自动协作完成</p>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="section">
-                <h2>最终产物</h2>
-                <div class="artifact-toolbar">
-                    <button id="copy-artifact-btn" class="button">复制</button>
-                </div>
-                <pre id="final-artifact" class="code-box"><code></code></pre>
-            </div>
-            <div class="section" id="thinking-process-container" style="display: none;">
-                <h2>深度思考过程 <button id="toggle-thinking-btn" class="button">显示/隐藏</button></h2>
-                <div id="thinking-process-content" class="log-box" style="display: none;"></div>
-            </div>
-            <div class="section chat-section">
-                <h2>事件流与对话</h2>
-                <div id="event-stream" class="log-box"></div>
-                <div id="chat-input-container" class="chat-input-container">
-                    <textarea id="chat-input" placeholder="请描述您需要AI团队完成的开发任务..."></textarea>
-                    <button id="send-chat-btn" class="button-primary" title="开始执行任务">发送</button>
-                    <button id="stop-task-btn" class="button" style="display: none;" title="停止当前任务">停止任务</button>
-                </div>
+            <div class="modal-footer">
+                <button id="start-guide-btn" class="btn btn-primary">🚀 开始配置向导</button>
+                <button id="skip-guide-btn" class="btn btn-secondary">跳过，我已熟悉</button>
             </div>
         </div>
     </div>
 
+    <nav class="tabs">
+        <button class="tab-button active" data-tab="status">📊 任务状态</button>
+        <button class="tab-button" data-tab="workspace">💻 工作区状态</button>
+        <button class="tab-button" data-tab="settings">⚙️ 设置</button>
+    </nav>
+
+    <!-- Status Tab Content -->
+    <div id="status" class="tab-content active">
+        <div style="display: grid; gap: var(--space-6);">
+             <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">🎯 总体目标</h2>
+                </div>
+                <div class="card-content">
+                    <p id="overall-goal">在下方输入您的开发需求，AI团队将自动规划并执行...</p>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📋 当前计划</h2>
+                </div>
+                <div class="card-content">
+                    <div id="plan-progress" style="display: none; margin-bottom: var(--space-4);">
+                        <div class="progress-bar">
+                            <div id="plan-progress-bar" class="progress-fill" style="width: 0%"></div>
+                        </div>
+                        <div class="progress-label">
+                            <span>进度</span>
+                            <span id="plan-progress-text">0%</span>
+                        </div>
+                    </div>
+                   <ul id="plan-list" style="list-style: none; padding: 0;"></ul>
+                   <div id="plan-review-container" style="display: none;">
+                       <h3 style="margin: var(--space-4) 0;">🔍 请审核并批准计划</h3>
+                       <div id="editable-plan-list"></div>
+                       <button id="add-task-btn" class="btn btn-secondary" style="margin: var(--space-3) 0;">➕ 添加新任务</button>
+                       <div style="display: flex; gap: var(--space-3); margin-top: var(--space-4);">
+                           <button id="approve-plan-btn" class="btn btn-success">✅ 批准计划并执行</button>
+                           <button id="cancel-plan-btn" class="btn btn-danger">❌ 取消任务</button>
+                       </div>
+                   </div>
+               </div>
+           </div>
+           
+           <div class="card">
+               <div class="card-header">
+                   <h2 class="card-title">📦 最终产物</h2>
+                   <button id="copy-artifact-btn" class="btn btn-icon btn-ghost" title="复制">📋</button>
+               </div>
+               <div class="card-content">
+                   <pre id="final-artifact" style="background: var(--bg-tertiary); padding: var(--space-4); border-radius: var(--radius-lg); overflow-x: auto;"><code></code></pre>
+               </div>
+           </div>
+           
+           <div class="card" id="thinking-process-container" style="display: none;">
+               <div class="card-header">
+                   <h2 class="card-title">🧠 深度思考过程</h2>
+                   <button id="toggle-thinking-btn" class="btn btn-icon btn-ghost">👁️</button>
+               </div>
+               <div class="card-content">
+                   <div id="thinking-process-content" style="display: none; background: var(--bg-tertiary); padding: var(--space-4); border-radius: var(--radius-lg); max-height: 300px; overflow-y: auto;"></div>
+               </div>
+           </div>
+           
+           <div class="card">
+               <div class="card-header">
+                   <h2 class="card-title">💬 事件流与对话</h2>
+               </div>
+               <div class="card-content">
+                   <div class="chat-container">
+                       <div id="event-stream" class="chat-messages"></div>
+                       <div class="chat-input-area">
+                           <textarea id="chat-input" class="chat-input" placeholder="请描述您需要AI团队完成的开发任务..."></textarea>
+                           <button id="send-chat-btn" class="btn btn-primary" title="开始执行任务">发送</button>
+                           <button id="stop-task-btn" class="btn btn-danger" style="display: none;" title="停止当前任务">停止</button>
+                       </div>
+                   </div>
+               </div>
+           </div>
+       </div>
+    </div>
+
     <!-- Workspace Tab Content -->
-    <div id="workspace" class="tab-content">
-        <button id="refresh-status-btn" class="button">刷新状态</button>
-        <div class="container">
-            <div class="section">
-                <h2>文件系统</h2>
-                <div id="fs-status" class="log-box"></div>
+    <div id="workspace" class="tab-content" style="display: none;">
+        <div style="margin-bottom: var(--space-4);">
+            <button id="refresh-status-btn" class="btn btn-primary">🔄 刷新状态</button>
+        </div>
+        <div style="display: grid; gap: var(--space-6);">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📁 文件系统</h2>
+                </div>
+                <div class="card-content">
+                    <div id="fs-status" style="background: var(--bg-tertiary); padding: var(--space-4); border-radius: var(--radius-lg); font-family: var(--font-mono); font-size: var(--text-sm); max-height: 300px; overflow-y: auto;"></div>
+                </div>
             </div>
-             <div class="section">
-                <h2>调试器</h2>
-                <div id="debugger-status"></div>
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">🐛 调试器</h2>
+                </div>
+                <div class="card-content">
+                    <div id="debugger-status" style="color: var(--text-secondary);"></div>
+                </div>
             </div>
-            <div class="section">
-                <h2>Git</h2>
-                <div id="git-status"></div>
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📦 Git 状态</h2>
+                </div>
+                <div class="card-content">
+                    <div id="git-status" style="color: var(--text-secondary);"></div>
+                </div>
             </div>
         </div>
     </div>
 
 
     <!-- Settings Tab Content -->
-    <div id="settings" class="tab-content">
-        <div class="container">
-            <h2>API 服务商配置</h2>
-            <div id="service-provider-list-container">
-                <!-- Service Providers will be dynamically rendered here -->
-            </div>
-            <button id="add-provider-btn" class="button">添加服务商</button>
-        </div>
-
-        <div id="roles-container" class="container">
-            <h2>角色配置</h2>
-            <div id="roles-list"></div>
-            <button id="add-role-btn" class="button">添加新角色</button>
-        </div>
-
-        <div class="container">
-            <h2>高级设置</h2>
-            <div id="advanced-settings">
-                <div class="setting-item">
-                    <label for="setting-smart-scan">启用智能扫描 (按需读取文件):</label>
-                    <input type="checkbox" id="setting-smart-scan">
+    <div id="settings" class="tab-content" style="display: none;">
+        <div style="display: grid; gap: var(--space-6);">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">🔧 API 服务商配置</h2>
+                    <button id="add-provider-btn" class="btn btn-primary">➕ 添加服务商</button>
                 </div>
-                <div class="setting-item">
-                    <label for="setting-parallel-exec">启用并行任务执行:</label>
-                    <input type="checkbox" id="setting-parallel-exec">
-                </div>
-                <div class="setting-item">
-                    <label for="setting-auto-mode">启用自动模式 (无需手动批准):</label>
-                    <input type="checkbox" id="setting-auto-mode">
-                </div>
-                <div class="setting-item">
-                    <label for="setting-persistence">启用任务持久化 (可恢复任务):</label>
-                    <input type="checkbox" id="setting-persistence">
-                </div>
-                <div class="setting-item">
-                    <label for="setting-long-term-memory">启用长期记忆 (实验性):</label>
-                    <input type="checkbox" id="setting-long-term-memory">
-                </div>
-                <div class="setting-item">
-                    <label for="setting-agent-collaboration">启用智能体协作 (实验性):</label>
-                    <input type="checkbox" id="setting-agent-collaboration">
+                <div class="card-content">
+                    <div id="service-provider-list-container">
+                        <!-- Service Providers will be dynamically rendered here -->
+                    </div>
                 </div>
             </div>
-        </div>
-        <div class="container">
-            <h2>配置健康检查</h2>
-            <p>点击按钮检查您的模型和角色配置是否正确。</p>
-            <button id="health-check-btn" class="button">运行检查</button>
-            <div id="health-check-spinner" class="spinner" style="display: none;"></div>
-            <pre id="health-check-results" class="log-box" style="display: none;"></pre>
-        </div>
 
-        <button id="save-settings-btn" class="button-primary">保存所有设置</button>
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">👥 角色配置</h2>
+                    <button id="add-role-btn" class="btn btn-primary">➕ 添加新角色</button>
+                </div>
+                <div class="card-content">
+                    <div id="roles-list"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">⚡ 高级设置</h2>
+                </div>
+                <div class="card-content">
+                    <div class="settings-group">
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <div class="setting-title">智能扫描</div>
+                                <div class="setting-description">按需读取文件，提高性能</div>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting-smart-scan" class="switch-input">
+                                <span class="switch-slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <div class="setting-title">并行任务执行</div>
+                                <div class="setting-description">同时执行多个任务，加快处理速度</div>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting-parallel-exec" class="switch-input">
+                                <span class="switch-slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <div class="setting-title">自动模式</div>
+                                <div class="setting-description">无需手动批准计划，自动执行</div>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting-auto-mode" class="switch-input">
+                                <span class="switch-slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <div class="setting-title">任务持久化</div>
+                                <div class="setting-description">保存任务状态，支持恢复</div>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting-persistence" class="switch-input">
+                                <span class="switch-slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <div class="setting-title">长期记忆</div>
+                                <div class="setting-description">实验性功能：记住之前的对话和任务</div>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting-long-term-memory" class="switch-input">
+                                <span class="switch-slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <div class="setting-title">智能体协作</div>
+                                <div class="setting-description">实验性功能：增强智能体间的协作能力</div>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting-agent-collaboration" class="switch-input">
+                                <span class="switch-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">🏥 配置健康检查</h2>
+                </div>
+                <div class="card-content">
+                    <p style="margin-bottom: var(--space-4); color: var(--text-secondary);">
+                        点击按钮检查您的模型和角色配置是否正确。
+                    </p>
+                    <button id="health-check-btn" class="btn btn-primary">🔍 运行检查</button>
+                    <div id="health-check-spinner" class="spinner" style="display: none; margin: var(--space-4) auto;">
+                        <div style="width: 40px; height: 40px; border: 3px solid var(--border-default); border-top-color: var(--brand-primary); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                    </div>
+                    <pre id="health-check-results" style="display: none; margin-top: var(--space-4); background: var(--bg-tertiary); padding: var(--space-4); border-radius: var(--radius-lg); font-family: var(--font-mono); font-size: var(--text-sm);"></pre>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: center; margin-top: var(--space-4);">
+                <button id="save-settings-btn" class="btn btn-success" style="min-width: 200px;">
+                    💾 保存所有设置
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Editor Modal (repurposed for both models and roles) -->
-    <div id="editor-modal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <h3 id="editor-title">编辑器</h3>
-            <div id="model-editor-fields">
-                <!-- Model fields will be injected by JS -->
+    <div id="editor-modal" class="modal-overlay" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="editor-title" class="modal-title">编辑器</h3>
+                <button id="close-editor-btn" class="btn btn-icon btn-ghost">✕</button>
             </div>
-            <div id="role-editor-fields">
-                <!-- Role fields will be injected by JS -->
+            <div class="modal-body">
+                <div id="model-editor-fields">
+                    <!-- Model fields will be injected by JS -->
+                </div>
+                <div id="role-editor-fields">
+                    <!-- Role fields will be injected by JS -->
+                </div>
             </div>
-            <div class="form-buttons">
-                <button id="save-editor-btn" class="button-primary">保存</button>
-                <button id="cancel-editor-btn" class="button">取消</button>
+            <div class="modal-footer">
+                <button id="save-editor-btn" class="btn btn-primary">💾 保存</button>
+                <button id="cancel-editor-btn" class="btn btn-secondary">取消</button>
             </div>
         </div>
     </div>
     
     <!-- Model Parameters Configuration Modal -->
-    <div id="model-params-modal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <h3 id="model-params-title">配置模型参数</h3>
-            <div class="form-grid">
-                <div class="form-item">
-                    <label for="param-temperature">温度参数</label>
-                    <input type="number" id="param-temperature" min="0" max="2" step="0.1" placeholder="例如: 0.7">
-                </div>
-                <div class="form-item">
-                    <label for="param-max-tokens">最大令牌数</label>
-                    <input type="number" id="param-max-tokens" min="1" step="1" placeholder="例如: 4096">
-                </div>
-                <div class="form-item form-item-full-width">
-                    <label for="param-system-prompt">系统提示词</label>
-                    <textarea id="param-system-prompt" rows="6" placeholder="输入自定义的系统提示..."></textarea>
-                </div>
+    <div id="model-params-modal" class="modal-overlay" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="model-params-title" class="modal-title">⚙️ 配置模型参数</h3>
+                <button class="btn btn-icon btn-ghost" onclick="document.getElementById('model-params-modal').style.display='none'">✕</button>
             </div>
+            <div class="modal-body">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); margin-bottom: var(--space-6);">
+                    <div class="form-group">
+                        <label class="form-label" for="param-temperature">温度参数</label>
+                        <input type="number" id="param-temperature" class="form-input" min="0" max="2" step="0.1" placeholder="例如: 0.7">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="param-max-tokens">最大令牌数</label>
+                        <input type="number" id="param-max-tokens" class="form-input" min="1" step="1" placeholder="例如: 4096">
+                    </div>
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label class="form-label" for="param-system-prompt">系统提示词</label>
+                        <textarea id="param-system-prompt" class="form-textarea" rows="6" placeholder="输入自定义的系统提示..."></textarea>
+                    </div>
+                </div>
             <hr>
             <h4>深度思考配置 (此模型的默认值)</h4>
             <div class="thinking-config-modal">
@@ -255,39 +395,64 @@
     </div>
 
     <!-- 配置模板选择器 -->
-    <div id="template-modal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <h3>选择配置模板</h3>
-            <p>选择一个预设模板快速开始，您可以稍后修改这些配置。</p>
-            <div class="template-list">
-                <div class="template-item" data-template="openai-gpt4">
-                    <h4>🚀 OpenAI GPT-4</h4>
-                    <p>使用最新的GPT-4模型，适合复杂的代码生成和分析任务</p>
-                    <small>需要：OpenAI API密钥</small>
-                </div>
-                <div class="template-item" data-template="claude-3">
-                    <h4>🎯 Anthropic Claude 3</h4>
-                    <p>使用Claude 3模型，擅长代码理解和长文本处理</p>
-                    <small>需要：Anthropic API密钥</small>
-                </div>
-                <div class="template-item" data-template="local-ollama">
-                    <h4>💻 本地Ollama</h4>
-                    <p>使用本地运行的开源模型，无需API密钥，完全离线</p>
-                    <small>需要：本地安装Ollama</small>
-                </div>
-                <div class="template-item" data-template="mixed">
-                    <h4>⚡ 混合配置</h4>
-                    <p>为不同角色使用不同的模型，优化成本和性能</p>
-                    <small>推荐：有经验的用户</small>
+    <div id="template-modal" class="modal-overlay" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">🎯 选择配置模板</h3>
+                <button class="btn btn-icon btn-ghost" onclick="document.getElementById('template-modal').style.display='none'">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="text-align: center; margin-bottom: var(--space-6); color: var(--text-secondary);">
+                    选择一个预设模板快速开始，您可以稍后修改这些配置。
+                </p>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--space-4);">
+                    <div class="card template-item" data-template="openai-gpt4" style="cursor: pointer; transition: all var(--duration-fast);">
+                        <div class="card-header">
+                            <h4 class="card-title">🚀 OpenAI GPT-4</h4>
+                        </div>
+                        <div class="card-content">
+                            <p>使用最新的GPT-4模型，适合复杂的代码生成和分析任务</p>
+                            <small style="color: var(--text-muted);">需要：OpenAI API密钥</small>
+                        </div>
+                    </div>
+                    <div class="card template-item" data-template="claude-3" style="cursor: pointer; transition: all var(--duration-fast);">
+                        <div class="card-header">
+                            <h4 class="card-title">🎯 Anthropic Claude 3</h4>
+                        </div>
+                        <div class="card-content">
+                            <p>使用Claude 3模型，擅长代码理解和长文本处理</p>
+                            <small style="color: var(--text-muted);">需要：Anthropic API密钥</small>
+                        </div>
+                    </div>
+                    <div class="card template-item" data-template="local-ollama" style="cursor: pointer; transition: all var(--duration-fast);">
+                        <div class="card-header">
+                            <h4 class="card-title">💻 本地Ollama</h4>
+                        </div>
+                        <div class="card-content">
+                            <p>使用本地运行的开源模型，无需API密钥，完全离线</p>
+                            <small style="color: var(--text-muted);">需要：本地安装Ollama</small>
+                        </div>
+                    </div>
+                    <div class="card template-item" data-template="mixed" style="cursor: pointer; transition: all var(--duration-fast);">
+                        <div class="card-header">
+                            <h4 class="card-title">⚡ 混合配置</h4>
+                        </div>
+                        <div class="card-content">
+                            <p>为不同角色使用不同的模型，优化成本和性能</p>
+                            <small style="color: var(--text-muted);">推荐：有经验的用户</small>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="form-buttons">
-                <button id="apply-template-btn" class="button-primary">应用模板</button>
-                <button id="cancel-template-btn" class="button">取消</button>
+            <div class="modal-footer">
+                <button id="apply-template-btn" class="btn btn-primary">✅ 应用模板</button>
+                <button id="cancel-template-btn" class="btn btn-secondary">取消</button>
             </div>
         </div>
     </div>
 
     <script src="main.js"></script>
+    <!-- UI增强脚本 -->
+    <script src="ui-enhancements.js"></script>
 </body>
 </html>

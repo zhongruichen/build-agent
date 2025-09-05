@@ -10,7 +10,7 @@ module.exports = [
   },
   {
     // Configuration for Node.js files (most of the project)
-    files: ["src/**/*.js", "!src/ui/assets/main.js"],
+    files: ["src/**/*.js", "!src/ui/assets/**/*.js", "!src/ui/components/**/*.js"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "commonjs",
@@ -28,20 +28,22 @@ module.exports = [
     }
   },
   {
-    // Configuration specifically for the browser-side UI script
-    files: ["src/ui/assets/main.js"],
+    // Configuration for all WebView asset files
+    files: ["src/ui/assets/**/*.js"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",
       globals: {
         ...globals.browser,
         "acquireVsCodeApi": "readonly",
-        "hljs": "readonly"
+        "hljs": "readonly",
+        "FileReader": "readonly",
+        "confirm": "readonly"
       }
     },
     rules: {
       "semi": ["error", "always"],
-      "no-unused-vars": ["warn", { "caughtErrors": "none" }],
+      "no-unused-vars": ["warn", { "args": "none", "caughtErrors": "none" }],
       "no-undef": "error"
     }
   },
